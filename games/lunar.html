@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Salto Lunar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/style.css">
+</head>
+<body>
+<div id="app"></div>
+<script src="../shared/engine.js"></script>
+<script>
+'use strict';
+const TS = 48, ROWS = 11, VW = 960, VH = ROWS * TS;
+const A = '../assets/lunar/';
+/* Diseño de niveles: g = suelo [x0,x1,filaSuperior], p = plataforma [x0,x1,fila], m = plataforma móvil [x,fila,ancho,recorrido],
+   s = pinchos (columnas), e = enemigos (columnas), c = puntos de control, k = gemas [x0,x1,fila], start / exit = columna */
+const LEVELS = [
+  { name: 'Primeros pasos', w: 60, g: [[0, 13, 9], [16, 36, 9], [39, 59, 9]], p: [[20, 23, 7]], s: [33], e: [28], c: [],
+    k: [[5, 8, 8], [14, 15, 7], [21, 22, 5], [29, 31, 7], [37, 38, 7], [44, 48, 8], [52, 53, 7]], start: 2, exit: 56 },
+  { name: 'Escalones de cuarzo', w: 72, g: [[0, 10, 9], [11, 18, 8], [19, 24, 7], [27, 34, 7], [35, 40, 9], [44, 52, 9], [53, 60, 8], [61, 71, 9]],
+    p: [[46, 49, 7]], s: [37, 38], e: [30, 50, 65], c: [],
+    k: [[13, 15, 7], [20, 22, 6], [25, 26, 5], [31, 33, 6], [41, 43, 7], [47, 48, 5], [55, 57, 7], [64, 66, 7]], start: 2, exit: 68 },
+  { name: 'Plataformas flotantes', w: 80, g: [[0, 14, 9], [22, 34, 8], [38, 46, 9], [52, 60, 7], [61, 79, 9]], p: [[48, 49, 8]],
+    m: [[15, 8, 3, 4]], s: [56, 57], e: [28, 41, 66, 72], c: [38],
+    k: [[8, 10, 8], [16, 19, 6], [24, 26, 7], [36, 37, 6], [48, 49, 6], [53, 55, 5], [63, 65, 8], [70, 74, 7]], start: 2, exit: 76 },
+  { name: 'Campo de pinchos', w: 90, g: [[0, 25, 9], [28, 40, 8], [43, 50, 9], [60, 89, 9]], p: [[17, 20, 7], [70, 73, 7]],
+    m: [[51, 8, 3, 5]], s: [10, 11, 12, 22, 23, 66, 67], e: [31, 38, 75, 81], c: [34],
+    k: [[10, 12, 6], [17, 20, 5], [22, 23, 6], [30, 32, 7], [44, 46, 8], [52, 57, 6], [66, 67, 6], [70, 73, 5], [84, 86, 8]], start: 2, exit: 86 },
+  { name: 'Escalera al cielo', w: 96, g: [[0, 15, 9], [30, 45, 9], [48, 55, 8], [58, 64, 7], [67, 75, 9], [83, 95, 9]],
+    p: [[17, 19, 7], [21, 23, 5], [25, 28, 3]], m: [[76, 8, 3, 4]], s: [70], e: [35, 41, 87], c: [32],
+    k: [[17, 19, 6], [21, 23, 4], [25, 28, 2], [36, 38, 8], [49, 51, 7], [59, 62, 5], [77, 80, 6], [88, 90, 8]], start: 2, exit: 92 },
+  { name: 'Puentes errantes', w: 100, g: [[0, 12, 9], [21, 30, 8], [41, 52, 7], [53, 70, 9], [73, 80, 8], [83, 99, 9]],
+    p: [[62, 64, 7]], m: [[13, 8, 2, 4], [31, 7, 2, 5]], s: [60, 61, 90], e: [45, 50, 66, 68, 93], c: [55],
+    k: [[14, 18, 6], [24, 27, 7], [32, 37, 5], [43, 45, 6], [62, 64, 5], [75, 78, 6], [86, 88, 8]], start: 2, exit: 96 },
+  { name: 'Las torres', w: 110, g: [[0, 10, 9], [29, 40, 8], [41, 48, 6], [49, 60, 9], [69, 80, 8], [83, 95, 9], [96, 109, 7]],
+    p: [[12, 13, 7], [15, 16, 5], [18, 22, 5], [24, 26, 6], [74, 76, 6]], m: [[61, 8, 3, 5]], s: [35, 52, 53, 54, 88, 89], e: [33, 37, 71, 79, 92], c: [50, 84],
+    k: [[12, 13, 6], [15, 16, 4], [18, 22, 4], [24, 26, 5], [42, 46, 5], [56, 58, 8], [62, 66, 6], [74, 76, 5], [98, 102, 6]], start: 2, exit: 106 },
+  { name: 'Patrulla lunar', w: 120, g: [[0, 20, 9], [23, 40, 9], [50, 62, 8], [63, 70, 6], [73, 85, 8], [88, 100, 9], [103, 119, 9]],
+    p: [[28, 31, 7], [77, 80, 6]], m: [[41, 9, 3, 6]], s: [11, 33, 75, 94, 95, 96], e: [8, 14, 27, 36, 76, 82, 108, 112], c: [24, 90],
+    k: [[10, 12, 6], [28, 31, 5], [42, 47, 7], [55, 57, 7], [64, 67, 5], [77, 80, 5], [94, 96, 6], [106, 110, 8]], start: 2, exit: 116 },
+  { name: 'El abismo', w: 130, g: [[0, 8, 9], [18, 24, 8], [35, 42, 7], [43, 50, 9], [61, 70, 8], [80, 90, 6], [91, 100, 9], [111, 129, 9]],
+    m: [[9, 8, 3, 5], [25, 7, 2, 6], [51, 8, 2, 6], [71, 6, 3, 5], [101, 8, 3, 6]], s: [46, 84, 118], e: [39, 64, 68, 97, 116, 121], c: [44, 93],
+    k: [[10, 15, 6], [20, 22, 7], [26, 32, 5], [37, 40, 6], [52, 58, 6], [62, 66, 7], [72, 78, 4], [82, 88, 4], [102, 108, 6], [113, 117, 8]], start: 2, exit: 126 },
+  { name: 'Ascenso final', w: 140, g: [[0, 12, 9], [30, 44, 8], [54, 60, 6], [61, 72, 9], [82, 92, 7], [102, 115, 9], [127, 139, 9]],
+    p: [[14, 16, 7], [18, 20, 5], [22, 24, 3], [26, 28, 5], [94, 96, 5], [98, 100, 3]], m: [[45, 7, 2, 6], [73, 8, 3, 6], [116, 8, 3, 7]],
+    s: [6, 36, 64, 65, 66, 105, 110], e: [33, 38, 42, 69, 85, 90, 107, 113], c: [31, 83],
+    k: [[14, 16, 6], [18, 20, 4], [22, 24, 2], [26, 28, 4], [34, 35, 6], [46, 52, 5], [55, 59, 4], [74, 80, 6], [86, 88, 5], [94, 96, 4], [98, 100, 2], [117, 124, 6], [130, 134, 8]], start: 2, exit: 136 }
+];
+
+let L = null; // estado del nivel
+const P = new Engine.Particles();
+const G = Engine.create({
+  id: 'lunar', title: 'Salto Lunar', genre: 'Plataformas', accent: '#b47cff',
+  tagline: 'Recorre la superficie de la luna, recoge todas las estrellas y alcanza el portal.',
+  help: ['<b>← →</b> o <b>A D</b> para correr', '<b>Espacio / ↑ / W</b> para saltar (mantén para saltar más alto)', 'Salta sobre los slimes para eliminarlos', 'Recoge todas las estrellas para lograr ★★★'],
+  levels: LEVELS.length, maxScale: 1.4,
+  assets: { bg: A + 'bg.webp', top: A + 'ground.webp', dirt: A + 'dirt.webp', player: A + 'player.webp', gem: A + 'gem.webp', spike: A + 'spike.webp', enemy: A + 'enemy.webp', portal: A + 'portal.webp' },
+  onLevel: load,
+  onReady(g) {
+    g.canvas(VW, VH);
+    g.loop(update, render);
+    g.touch([{ label: '◀', code: 'ArrowLeft' }, { label: '▶', code: 'ArrowRight' }], [{ label: '⤒', code: 'Space' }]);
+  }
+});
+
+function load(n) {
+  const d = LEVELS[n - 1];
+  const grid = Array.from({ length: ROWS }, () => new Array(d.w).fill(' '));
+  for (const [a, b, t] of d.g) for (let x = a; x <= b; x++) for (let y = t; y < ROWS; y++) grid[y][x] = '#';
+  for (const [a, b, r] of d.p || []) for (let x = a; x <= b; x++) grid[r][x] = '=';
+  const surf = x => { for (let y = 0; y < ROWS; y++) if (grid[y][x] !== ' ') return y - 1; return ROWS - 1; };
+  L = {
+    d, grid, w: d.w, t: 0, cam: 0, lives: 3, score: 0, got: 0,
+    gems: [], enemies: [], spikes: [], movers: [], checkpoint: null, cps: [],
+  };
+  for (const x of d.s || []) { const y = surf(x); grid[y][x] = '^'; L.spikes.push({ x: x * TS + 6, y: y * TS + 24, w: 36, h: 24 }); }
+  for (const x of d.e || []) L.enemies.push({ x: x * TS + 6, y: (surf(x) + 1) * TS - 32, w: 36, h: 32, vx: -60, alive: true, squash: 0 });
+  for (const [a, b, r] of d.k) for (let x = a; x <= b; x++) L.gems.push({ x: x * TS + 24, y: r * TS + 24, got: false, ph: x * .7 });
+  for (const [x, r, wd, rng] of d.m || []) L.movers.push({ x0: x * TS, x: x * TS, y: r * TS, w: wd * TS, h: 20, range: rng * TS, t: 0, dx: 0 });
+  for (const x of d.c || []) L.cps.push({ x: x * TS + 24, y: (surf(x) + 1) * TS, on: false });
+  L.exit = { x: d.exit * TS, y: (surf(d.exit) + 1) * TS - 96, w: 48, h: 96 };
+  L.spawn = { x: d.start * TS + 11, y: (surf(d.start) + 1) * TS - 40 };
+  L.total = L.gems.length;
+  spawn();
+  P.clear();
+  hud();
+  G.toast(`Nivel ${n}: ${d.name}`);
+}
+function spawn() {
+  const s = L.checkpoint || L.spawn;
+  L.pl = { x: s.x, y: s.y, w: 26, h: 40, vx: 0, vy: 0, on: false, coyote: 0, buf: 0, face: 1, inv: 1.2, run: 0, land: 0, ride: null };
+}
+function hud() { G.hud({ Nivel: `${G.level}/${LEVELS.length}`, Estrellas: `${L.got}/${L.total}`, Vidas: '♥'.repeat(L.lives) || '—', Puntos: L.score }); }
+
+const solidAt = (tx, ty) => {
+  if (tx < 0 || tx >= L.w) return true;
+  if (ty < 0 || ty >= ROWS) return false;
+  const c = L.grid[ty][tx]; return c === '#' || c === '=';
+};
+function collide(o, axis) {
+  const x0 = Math.floor(o.x / TS), x1 = Math.floor((o.x + o.w - .01) / TS);
+  const y0 = Math.floor(o.y / TS), y1 = Math.floor((o.y + o.h - .01) / TS);
+  for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
+    if (!solidAt(tx, ty)) continue;
+    if (axis === 'x') {
+      if (o.vx > 0) o.x = tx * TS - o.w; else if (o.vx < 0) o.x = (tx + 1) * TS;
+      o.vx = 0; return true;
+    } else {
+      if (o.vy > 0) { o.y = ty * TS - o.h; o.vy = 0; return 'down'; }
+      if (o.vy < 0) { o.y = (ty + 1) * TS; o.vy = 0; return 'up'; }
+    }
+  }
+  return false;
+}
+const hit = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+
+function hurt() {
+  const p = L.pl; if (p.inv > 0) return;
+  L.lives--; G.sfx('hit');
+  P.burst(p.x + 13, p.y + 20, 24, { color: ['#ffffff', '#b47cff', '#7ff9ff'], speed: 320 });
+  hud();
+  if (L.lives <= 0) { G.lose('Te quedaste sin vidas', [['Estrellas', `${L.got}/${L.total}`], ['Puntos', L.score]]); return; }
+  spawn();
+}
+
+function update(dt) {
+  L.t += dt;
+  const k = G.keys, p = L.pl;
+  for (const m of L.movers) { m.t += dt; const nx = m.x0 + (Math.sin(m.t * 1.1 - Math.PI / 2) + 1) / 2 * m.range; m.dx = nx - m.x; m.x = nx; }
+  const left = k.ArrowLeft || k.KeyA, right = k.ArrowRight || k.KeyD;
+  const jumpHeld = k.Space || k.ArrowUp || k.KeyW;
+  if (jumpHeld && !L.jumpWas) p.buf = .12;
+  L.jumpWas = jumpHeld;
+  const dir = (right ? 1 : 0) - (left ? 1 : 0);
+  const acc = p.on ? 2600 : 1700, max = 290;
+  if (dir) { p.vx += dir * acc * dt; p.face = dir; } else { const f = (p.on ? 2600 : 600) * dt; p.vx = Math.abs(p.vx) <= f ? 0 : p.vx - Math.sign(p.vx) * f; }
+  p.vx = Engine.clamp(p.vx, -max, max);
+  p.coyote = p.on ? .1 : p.coyote - dt; p.buf -= dt;
+  if (p.buf > 0 && p.coyote > 0) { p.vy = -840; p.buf = 0; p.coyote = 0; p.on = false; p.ride = null; G.sfx('jump'); P.burst(p.x + 13, p.y + 40, 8, { color: '#d6fffb', speed: 120, life: .4, size: 3 }); }
+  if (!jumpHeld && p.vy < -320) p.vy = -320;
+  p.vy = Math.min(p.vy + 2300 * dt, 900);
+  if (p.ride) p.x += p.ride.dx;
+  p.x += p.vx * dt; collide(p, 'x');
+  const wasOn = p.on; p.on = false; p.ride = null;
+  const prevBottom = p.y + p.h;
+  p.y += p.vy * dt;
+  if (collide(p, 'y') === 'down') p.on = true;
+  for (const m of L.movers) {
+    if (p.vy >= 0 && prevBottom <= m.y + 2 && p.y + p.h >= m.y && p.x + p.w > m.x && p.x < m.x + m.w) { p.y = m.y - p.h; p.vy = 0; p.on = true; p.ride = m; }
+  }
+  if (p.on && !wasOn) { p.land = .15; P.burst(p.x + 13, p.y + 40, 6, { color: '#d6fffb', speed: 90, life: .35, size: 3, angle: -Math.PI / 2, spread: 3 }); }
+  p.land = Math.max(0, p.land - dt); p.inv = Math.max(0, p.inv - dt);
+  p.run += Math.abs(p.vx) * dt * .05;
+  if (p.y > VH + 60) { L.lives--; G.sfx('hit'); hud(); if (L.lives <= 0) { G.lose('Caíste al vacío', [['Estrellas', `${L.got}/${L.total}`]]); return; } spawn(); return; }
+
+  for (const g of L.gems) if (!g.got && Math.abs(g.x - (p.x + 13)) < 26 && Math.abs(g.y - (p.y + 20)) < 32) {
+    g.got = true; L.got++; L.score += 100; G.sfx('coin'); hud();
+    P.burst(g.x, g.y, 12, { color: ['#fff6b0', '#ffd84d'], speed: 160, life: .5, size: 3 });
+  }
+  for (const s of L.spikes) if (hit(p, s)) { hurt(); return; }
+  for (const e of L.enemies) {
+    if (!e.alive) { e.squash += dt; continue; }
+    e.x += e.vx * dt;
+    const ahead = e.vx > 0 ? e.x + e.w + 2 : e.x - 2;
+    const tx = Math.floor(ahead / TS), ty = Math.floor((e.y + e.h - 2) / TS);
+    if (solidAt(tx, ty) || !solidAt(tx, ty + 1) || L.grid[ty]?.[tx] === '^') e.vx = -e.vx;
+    if (hit(p, e)) {
+      if (p.vy > 0 && p.y + p.h - e.y < 22) {
+        e.alive = false; p.vy = -560; L.score += 200; G.sfx('pop'); hud();
+        P.burst(e.x + 18, e.y + 16, 18, { color: ['#ff8ab0', '#ffffff'], speed: 240 });
+        P.text(e.x + 18, e.y - 6, '+200', { color: '#ff8ab0', size: 18 });
+      } else { hurt(); return; }
+    }
+  }
+  for (const c of L.cps) if (!c.on && Math.abs(c.x - (p.x + 13)) < 30 && Math.abs(c.y - (p.y + 40)) < 50) {
+    c.on = true; L.checkpoint = { x: c.x - 13, y: c.y - 40 }; G.sfx('power'); G.toast('Punto de control');
+    P.burst(c.x, c.y - 40, 20, { color: ['#3dff9a', '#ffffff'], speed: 200 });
+  }
+  if (hit(p, { x: L.exit.x + 10, y: L.exit.y + 10, w: 28, h: 80 })) {
+    const ratio = L.got / L.total;
+    const stars = ratio >= 1 ? 3 : ratio >= .6 ? 2 : 1;
+    L.score += L.lives * 300;
+    P.burst(L.exit.x + 24, L.exit.y + 48, 40, { color: ['#ff4fd8', '#ffffff', '#7ff9ff'], speed: 300 });
+    G.win(stars, [['Estrellas', `${L.got}/${L.total}`], ['Vidas', L.lives], ['Tiempo', L.t.toFixed(1) + ' s'], ['Puntos', L.score]], L.score);
+  }
+  P.update(dt);
+  const target = Engine.clamp(p.x - VW * .4, 0, L.w * TS - VW);
+  L.cam += (target - L.cam) * Math.min(1, dt * 8);
+}
+
+function render() {
+  const ctx = G.ctx, a = G.assets; if (!L || !ctx) return;
+  const t = performance.now() / 1000;
+  const bw = VH * a.bg.width / a.bg.height;
+  const off = -((L.cam * .25) % bw);
+  for (let x = off; x < VW; x += bw) ctx.drawImage(a.bg, x, 0, bw + 1, VH);
+  ctx.save();
+  ctx.translate(-Math.round(L.cam), 0);
+  const c0 = Math.max(0, Math.floor(L.cam / TS) - 1), c1 = Math.min(L.w - 1, c0 + 22);
+  for (let y = 0; y < ROWS; y++) for (let x = c0; x <= c1; x++) {
+    const c = L.grid[y][x];
+    if (c === '#') ctx.drawImage(y > 0 && (L.grid[y - 1][x] === '#' || L.grid[y - 1][x] === '=') ? a.dirt : a.top, x * TS, y * TS, TS, TS);
+    else if (c === '=') ctx.drawImage(a.top, 0, 0, a.top.width, a.top.height / 2, x * TS, y * TS, TS, TS / 2);
+    else if (c === '^') ctx.drawImage(a.spike, x * TS, y * TS, TS, TS);
+  }
+  for (const m of L.movers) {
+    for (let x = 0; x < m.w; x += TS) ctx.drawImage(a.top, 0, 0, a.top.width, a.top.height * .42, m.x + x, m.y, TS, 20);
+    ctx.fillStyle = 'rgba(127,249,255,.35)'; ctx.fillRect(m.x + 4, m.y + 20, m.w - 8, 3);
+  }
+  for (const c of L.cps) {
+    ctx.fillStyle = '#c9d2e6'; ctx.fillRect(c.x - 2, c.y - 70, 4, 70);
+    ctx.fillStyle = c.on ? '#3dff9a' : '#6b6f86';
+    ctx.beginPath(); ctx.moveTo(c.x + 2, c.y - 70); ctx.lineTo(c.x + 30, c.y - 60); ctx.lineTo(c.x + 2, c.y - 50); ctx.fill();
+    if (c.on) { ctx.shadowColor = '#3dff9a'; ctx.shadowBlur = 16; ctx.fill(); ctx.shadowBlur = 0; }
+  }
+  const ex = L.exit, pul = 1 + Math.sin(t * 4) * .04;
+  ctx.save(); ctx.translate(ex.x + 24, ex.y + 48); ctx.scale(pul, pul); ctx.drawImage(a.portal, -32, -48, 64, 96); ctx.restore();
+  for (const g of L.gems) if (!g.got) {
+    const s = 30 + Math.sin(t * 4 + g.ph) * 3;
+    ctx.drawImage(a.gem, g.x - s / 2, g.y - s / 2 + Math.sin(t * 2 + g.ph) * 3, s, s);
+  }
+  for (const e of L.enemies) {
+    if (!e.alive) { if (e.squash < .4) { ctx.globalAlpha = 1 - e.squash / .4; ctx.drawImage(a.enemy, e.x - 6, e.y + 20, 48, 16); ctx.globalAlpha = 1; } continue; }
+    const sq = 1 + Math.sin(t * 10 + e.x) * .06;
+    ctx.save(); ctx.translate(e.x + 18, e.y + 32); ctx.scale((e.vx > 0 ? -1 : 1) * (2 - sq), sq);
+    ctx.drawImage(a.enemy, -24, -44, 48, 48); ctx.restore();
+  }
+  const p = L.pl;
+  if (!(p.inv > 0 && Math.floor(t * 16) % 2)) {
+    let sx = 1, sy = 1;
+    if (!p.on) { sx = .9; sy = 1.1; } else if (p.land > 0) { sx = 1.2; sy = .82; }
+    const bob = p.on && Math.abs(p.vx) > 20 ? Math.abs(Math.sin(p.run * 3)) * -3 : 0;
+    ctx.save(); ctx.translate(p.x + 13, p.y + 40 + bob); ctx.scale(p.face * sx, sy);
+    ctx.drawImage(a.player, -24, -46, 48, 48); ctx.restore();
+  }
+  P.draw(ctx);
+  ctx.restore();
+}
+</script>
+</body>
+</html>

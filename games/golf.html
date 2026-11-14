@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mini Golf Zen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/style.css">
+<style>body{background:radial-gradient(ellipse at center,#1f4a26,#08160b 75%)}</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="../shared/engine.js"></script>
+<script>
+'use strict';
+const W = 960, H = 600, BR = 8, HR = 12, B = 16;
+const A = '../assets/golf/';
+const HOLES = [
+  { name: 'Primer golpe', par: 2, start: [150, 300], hole: [810, 300], walls: [], sand: [], water: [], bump: [], movers: [] },
+  { name: 'El muro', par: 3, start: [150, 150], hole: [810, 150], walls: [[470, 16, 40, 400]], sand: [], water: [], bump: [], movers: [] },
+  { name: 'Búnkeres', par: 3, start: [120, 480], hole: [840, 120], walls: [[420, 380, 30, 204], [560, 90, 30, 210]], sand: [[290, 190, 200, 130], [590, 300, 180, 150], [700, 40, 110, 80]], water: [], bump: [], movers: [] },
+  { name: 'El estanque', par: 3, start: [120, 300], hole: [850, 130], walls: [], sand: [[700, 380, 160, 120]], water: [[320, 16, 320, 228], [320, 356, 320, 228]], bump: [], movers: [] },
+  { name: 'Zigzag', par: 4, start: [120, 520], hole: [850, 520], walls: [[240, 16, 30, 420], [480, 164, 30, 420], [720, 16, 30, 420]], sand: [[790, 300, 120, 90]], water: [], bump: [], movers: [] },
+  { name: 'Rebotes', par: 3, start: [130, 300], hole: [730, 300], walls: [[400, 150, 30, 300]], sand: [], water: [], bump: [[650, 215, 22], [810, 215, 22], [650, 385, 22], [810, 385, 22], [730, 185, 22]], movers: [] },
+  { name: 'La compuerta', par: 3, start: [80, 300], hole: [850, 300], walls: [[16, 196, 600, 30], [16, 374, 600, 30]], sand: [[700, 120, 120, 100]], water: [], bump: [],
+    movers: [{ x: 300, y: 226, w: 30, h: 70, ax: 'y', range: 78, sp: 1.6 }, { x: 470, y: 226, w: 30, h: 70, ax: 'y', range: 78, sp: 2.1, ph: 1.5 }] },
+  { name: 'Paso estrecho', par: 4, start: [120, 300], hole: [860, 140], walls: [[300, 140, 30, 320]], sand: [[700, 240, 150, 110]], water: [[500, 16, 140, 300], [500, 400, 140, 184]], bump: [], movers: [] },
+  { name: 'Gran final', par: 5, start: [110, 300], hole: [860, 300], walls: [], sand: [[770, 430, 174, 154]], water: [[250, 16, 120, 258], [250, 372, 120, 212]], bump: [[620, 300, 26], [700, 190, 22], [700, 410, 22]],
+    movers: [{ x: 450, y: 120, w: 30, h: 100, ax: 'y', range: 280, sp: 1.2 }] }
+];
+const P = new Engine.Particles();
+let S = null, pat = {};
+
+const G = Engine.create({
+  id: 'golf', title: 'Mini Golf Zen', genre: 'Física y precisión', accent: '#7bdc5a',
+  tagline: 'Nueve hoyos llenos de rebotes, arena, agua y compuertas. Calcula el ángulo y la fuerza perfectos.',
+  help: ['<b>Arrastra</b> desde cualquier punto y suelta: tira hacia atrás como un tirachinas', 'O usa <b>← →</b> para apuntar, <b>↑ ↓</b> para la fuerza y <b>Espacio</b> para golpear', 'La arena frena la bola · el agua suma un golpe de penalización', 'Termina en el par o menos para ★★★'],
+  levels: HOLES.length,
+  assets: { grass: A + 'grass.webp', sand: A + 'sand.webp', water: A + 'water.webp', wood: A + 'wood.webp', ball: A + 'ball.webp', hole: A + 'hole.webp', flag: A + 'flag.webp', bumper: A + 'bumper.webp' },
+  onLevel: load,
+  onReady(g) {
+    g.canvas(W, H);
+    const c = g.ctx;
+    for (const k of ['grass', 'sand', 'water', 'wood']) pat[k] = c.createPattern(g.assets[k], 'repeat');
+    g.loop(update, render);
+    g.cv.addEventListener('pointerdown', e => { if (!S || !still() || S.sunk || !G.playing || G.paused) return; S.aim = { from: g.pos(e), to: g.pos(e) }; g.cv.setPointerCapture(e.pointerId); });
+    g.cv.addEventListener('pointermove', e => { if (S && S.aim) S.aim.to = g.pos(e); });
+    g.cv.addEventListener('pointerup', () => {
+      if (!S || !S.aim) return;
+      const dx = S.aim.from.x - S.aim.to.x, dy = S.aim.from.y - S.aim.to.y; S.aim = null;
+      const d = Math.min(170, Math.hypot(dx, dy)); if (d < 8) return;
+      shoot(Math.atan2(dy, dx), d / 170);
+    });
+    addEventListener('keydown', e => {
+      if (!S || !still() || S.sunk) return;
+      if (e.code === 'ArrowLeft') S.kAng -= .06; if (e.code === 'ArrowRight') S.kAng += .06;
+      if (e.code === 'ArrowUp') S.kPow = Math.min(1, S.kPow + .05); if (e.code === 'ArrowDown') S.kPow = Math.max(.05, S.kPow - .05);
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.code)) S.kShow = 2.5;
+      if (e.code === 'Space') shoot(S.kAng, S.kPow);
+    });
+  }
+});
+
+function load(n) {
+  const h = HOLES[n - 1];
+  const walls = [[0, 0, W, B], [0, H - B, W, B], [0, 0, B, H], [W - B, 0, B, H], ...h.walls].map(([x, y, w, hh]) => ({ x, y, w, h: hh }));
+  S = { h, walls, movers: h.movers.map(m => ({ ...m, bx: m.x, by: m.y, t: m.ph || 0 })), ball: { x: h.start[0], y: h.start[1], vx: 0, vy: 0 }, last: h.start.slice(),
+    strokes: 0, aim: null, sunk: false, t: 0, trail: [], kAng: Math.atan2(h.hole[1] - h.start[1], h.hole[0] - h.start[0]), kPow: .5, kShow: 0, sink: 0 };
+  P.clear(); hud();
+  G.toast(`Hoyo ${n}: ${h.name} · Par ${h.par}`);
+}
+function hud() { G.hud({ Hoyo: `${G.level}/${HOLES.length}`, Par: S.h.par, Golpes: S.strokes }); }
+const still = () => Math.hypot(S.ball.vx, S.ball.vy) < 1;
+function shoot(ang, pow) {
+  if (!G.playing || G.paused) return;
+  const sp = 120 + pow * 980;
+  S.last = [S.ball.x, S.ball.y];
+  S.ball.vx = Math.cos(ang) * sp; S.ball.vy = Math.sin(ang) * sp; S.kAng = ang;
+  S.strokes++; hud();
+  G.Sound.tone(220 + pow * 200, .08, { type: 'triangle', vol: .2 }); G.Sound.noise(.05, { vol: .2, freq: 3000 });
+}
+const inRect = (x, y, r) => x > r[0] && x < r[0] + r[2] && y > r[1] && y < r[1] + r[3];
+
+function collideRect(b, r) {
+  const cx = Engine.clamp(b.x, r.x, r.x + r.w), cy = Engine.clamp(b.y, r.y, r.y + r.h);
+  let dx = b.x - cx, dy = b.y - cy, d = Math.hypot(dx, dy);
+  if (d >= BR) return false;
+  if (d === 0) { // dentro: empujar por el lado más cercano
+    const opts = [[b.x - r.x, -1, 0], [r.x + r.w - b.x, 1, 0], [b.y - r.y, 0, -1], [r.y + r.h - b.y, 0, 1]].sort((a, c) => a[0] - c[0])[0];
+    dx = opts[1]; dy = opts[2]; d = 1;
+    b.x += dx * (opts[0] + BR); b.y += dy * (opts[0] + BR);
+  } else { b.x = cx + dx / d * BR; b.y = cy + dy / d * BR; }
+  const nx = dx / d, ny = dy / d, dot = b.vx * nx + b.vy * ny;
+  if (dot < 0) { b.vx -= 1.8 * dot * nx; b.vy -= 1.8 * dot * ny; if (-dot > 60) G.Sound.tone(180, .05, { type: 'square', vol: Math.min(.12, -dot / 4000) }); }
+  return true;
+}
+function update(dt) {
+  S.t += dt; S.kShow = Math.max(0, S.kShow - dt);
+  for (const m of S.movers) { m.t += dt; const k = (Math.sin(m.t * m.sp) + 1) / 2 * m.range; if (m.ax === 'y') m.y = m.by + k; else m.x = m.bx + k; }
+  const b = S.ball;
+  if (S.sunk) { S.sink = Math.min(1, S.sink + dt * 3); P.update(dt); return; }
+  const sp = Math.hypot(b.vx, b.vy);
+  if (sp > 0) {
+    const steps = Math.max(1, Math.ceil(sp * dt / 4));
+    for (let i = 0; i < steps; i++) {
+      const d = dt / steps;
+      b.x += b.vx * d; b.y += b.vy * d;
+      for (const w of S.walls) collideRect(b, w);
+      for (const m of S.movers) collideRect(b, m);
+      for (const [x, y, r] of S.h.bump) {
+        const dx = b.x - x, dy = b.y - y, dd = Math.hypot(dx, dy);
+        if (dd < r + BR) {
+          const nx = dx / dd, ny = dy / dd; b.x = x + nx * (r + BR); b.y = y + ny * (r + BR);
+          const dot = b.vx * nx + b.vy * ny; if (dot < 0) { b.vx -= 2 * dot * nx; b.vy -= 2 * dot * ny; }
+          const s = Math.max(380, Math.hypot(b.vx, b.vy) * 1.12), m2 = Math.hypot(b.vx, b.vy); b.vx = b.vx / m2 * s; b.vy = b.vy / m2 * s;
+          G.Sound.tone(660, .1, { type: 'triangle', vol: .12, slide: 1.5 });
+          P.burst(x + nx * r, y + ny * r, 8, { color: ['#ff4fd8', '#ffffff'], speed: 150, life: .35 });
+        }
+      }
+    }
+    const onSand = S.h.sand.some(r => inRect(b.x, b.y, r));
+    const k = onSand ? 3.6 : .95, dec = onSand ? 80 : 22;
+    const f = Math.exp(-k * dt); b.vx *= f; b.vy *= f;
+    const s2 = Math.hypot(b.vx, b.vy);
+    if (s2 > 0) { const ns = Math.max(0, s2 - dec * dt); b.vx *= ns / s2; b.vy *= ns / s2; }
+    if (Math.hypot(b.vx, b.vy) < 7) { b.vx = 0; b.vy = 0; }
+    S.trail.push([b.x, b.y]); if (S.trail.length > 14) S.trail.shift();
+  } else if (S.trail.length) S.trail.shift();
+  // hoyo
+  const hx = S.h.hole[0], hy = S.h.hole[1], dh = Math.hypot(b.x - hx, b.y - hy), cur = Math.hypot(b.vx, b.vy);
+  if (dh < 22 && cur > 0) { b.vx += (hx - b.x) * 9 * dt; b.vy += (hy - b.y) * 9 * dt; }
+  if (dh < HR - 2 && cur < 520) {
+    S.sunk = true; b.vx = b.vy = 0; b.x = hx; b.y = hy;
+    G.sfx('coin'); P.burst(hx, hy, 30, { color: ['#ffffff', '#ffd84d', '#7bdc5a'], speed: 240 });
+    const par = S.h.par, st = S.strokes;
+    const label = st === 1 ? '¡Hoyo en uno!' : st <= par - 2 ? '¡Eagle!' : st === par - 1 ? '¡Birdie!' : st === par ? 'Par' : st === par + 1 ? 'Bogey' : 'Doble bogey o más';
+    G.toast(label, 1800);
+    const stars = st <= par ? 3 : st <= par + 2 ? 2 : 1;
+    setTimeout(() => G.win(stars, [['Golpes', st], ['Par', par], ['Resultado', label]], 1000 - st * 50), 1100);
+    return;
+  }
+  // agua
+  if (S.h.water.some(r => inRect(b.x, b.y, r))) {
+    G.sfx('splash'); P.burst(b.x, b.y, 22, { color: ['#bfe9ff', '#ffffff', '#2a8bd6'], speed: 180, life: .6 });
+    b.x = S.last[0]; b.y = S.last[1]; b.vx = b.vy = 0; S.strokes++; hud(); G.toast('¡Al agua! +1 golpe');
+  }
+  if (still() && S.strokes >= S.h.par + 6) G.lose('Demasiados golpes', [['Golpes', S.strokes], ['Par', S.h.par]]);
+  P.update(dt);
+}
+function rectPath(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
+function render() {
+  const ctx = G.ctx, a = G.assets; if (!ctx || !S) return;
+  const t = performance.now() / 1000;
+  ctx.fillStyle = pat.grass; ctx.fillRect(0, 0, W, H);
+  // sombras de bordes
+  ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.fillRect(B, B, W - 2 * B, 10); ctx.fillRect(B, B, 8, H - 2 * B);
+  for (const [x, y, w, h] of S.h.water) {
+    ctx.save(); ctx.fillStyle = pat.water; ctx.translate(Math.sin(t) * 6, 0); rectPath(ctx, x - Math.sin(t) * 6, y, w, h, 18); ctx.fill(); ctx.restore();
+    ctx.strokeStyle = 'rgba(191,233,255,.7)'; ctx.lineWidth = 3; rectPath(ctx, x, y, w, h, 18); ctx.stroke();
+  }
+  for (const [x, y, w, h] of S.h.sand) { ctx.fillStyle = pat.sand; rectPath(ctx, x, y, w, h, 30); ctx.fill(); ctx.strokeStyle = 'rgba(160,120,60,.5)'; ctx.lineWidth = 2; ctx.stroke(); }
+  // hoyo
+  const [hx, hy] = S.h.hole;
+  ctx.drawImage(a.hole, hx - 16, hy - 16, 32, 32);
+  const fd = Math.hypot(S.ball.x - hx, S.ball.y - hy);
+  ctx.globalAlpha = Engine.clamp((fd - 30) / 60, .25, 1);
+  ctx.drawImage(a.flag, hx - 10, hy - 76 + Math.sin(t * 2) * 1, 48, 80); ctx.globalAlpha = 1;
+  for (const [x, y, r] of S.h.bump) { const s = r * 2.2 * (1 + Math.sin(t * 4 + x) * .03); ctx.drawImage(a.bumper, x - s / 2, y - s / 2, s, s); }
+  const wallDraw = w => { ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(w.x + 5, w.y + 6, w.w, w.h); ctx.fillStyle = pat.wood; ctx.fillRect(w.x, w.y, w.w, w.h); ctx.strokeStyle = '#4a2a12'; ctx.lineWidth = 2; ctx.strokeRect(w.x + 1, w.y + 1, w.w - 2, w.h - 2); ctx.fillStyle = 'rgba(255,230,190,.25)'; ctx.fillRect(w.x + 2, w.y + 2, w.w - 4, 3); };
+  for (const w of S.walls) wallDraw(w);
+  for (const m of S.movers) { wallDraw(m); ctx.fillStyle = '#ffd84d'; ctx.fillRect(m.x + 4, m.y + m.h / 2 - 2, m.w - 8, 4); }
+  // apuntado
+  const b = S.ball;
+  let aimAng = null, aimPow = 0;
+  if (S.aim) { const dx = S.aim.from.x - S.aim.to.x, dy = S.aim.from.y - S.aim.to.y; aimPow = Math.min(1, Math.hypot(dx, dy) / 170); aimAng = Math.atan2(dy, dx); }
+  else if (S.kShow > 0 && still()) { aimAng = S.kAng; aimPow = S.kPow; }
+  if (aimAng != null && aimPow > .04) {
+    const len = 40 + aimPow * 200;
+    for (let i = 1; i <= 12; i++) { const d = i / 12 * len; ctx.fillStyle = `rgba(255,255,255,${1 - i / 13})`; ctx.beginPath(); ctx.arc(b.x + Math.cos(aimAng) * d, b.y + Math.sin(aimAng) * d, 3.5 - i * .15, 0, 6.283); ctx.fill(); }
+    const bx = b.x - 40, by = b.y + 20;
+    ctx.fillStyle = 'rgba(0,0,0,.5)'; rectPath(ctx, bx, by, 80, 10, 5); ctx.fill();
+    ctx.fillStyle = `hsl(${120 - aimPow * 120},90%,55%)`; rectPath(ctx, bx, by, 80 * aimPow, 10, 5); ctx.fill();
+  }
+  S.trail.forEach(([x, y], i) => { ctx.fillStyle = `rgba(255,255,255,${i / S.trail.length * .3})`; ctx.beginPath(); ctx.arc(x, y, BR * i / S.trail.length, 0, 6.283); ctx.fill(); });
+  const s = 24 * (1 - S.sink * .6);
+  ctx.globalAlpha = 1 - S.sink * .8;
+  ctx.drawImage(a.ball, b.x - s / 2, b.y - s / 2, s, s);
+  ctx.globalAlpha = 1;
+  if (still() && !S.sunk && !S.aim && S.strokes === 0 && G.playing) {
+    ctx.fillStyle = 'rgba(0,0,0,.5)'; rectPath(ctx, W / 2 - 200, H - 58, 400, 34, 10); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = '600 15px Outfit, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('Arrastra hacia atrás y suelta para golpear', W / 2, H - 36);
+  }
+  P.draw(ctx);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Flujo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/style.css">
+</head>
+<body>
+<div id="app"></div>
+<script src="../shared/engine.js"></script>
+<script>
+'use strict';
+const T = 80, PAD = 20;
+const A = '../assets/flujo/';
+const SIZES = [[4, 4], [5, 4], [5, 5], [6, 5], [6, 6], [7, 6], [7, 7], [8, 7], [8, 8], [9, 8]];
+const DIRS = [[0, -1, 1], [1, 0, 2], [0, 1, 4], [-1, 0, 8]]; // arriba, derecha, abajo, izquierda
+const OPP = { 1: 4, 2: 8, 4: 1, 8: 2 };
+const BASE = { end: 1, straight: 5, corner: 3, tee: 7, cross: 15 };
+const rot = (m, r) => { for (let i = 0; i < ((r % 4) + 4) % 4; i++) m = ((m << 1) | (m >> 3)) & 15; return m; };
+const P = new Engine.Particles();
+let S = null;
+
+const G = Engine.create({
+  id: 'flujo', title: 'Flujo', genre: 'Puzle de conexión', accent: '#2ee6ff',
+  tagline: 'Gira las tuberías para que el agua llegue desde la bomba central a cada desagüe sin una sola fuga.',
+  help: ['<b>Clic izquierdo</b> (o toque) gira a la derecha · <b>clic derecho</b> gira a la izquierda', 'El agua fluye en tiempo real desde la bomba verde', 'Llena <b>todas</b> las piezas y no dejes extremos abiertos', 'Menos giros = más estrellas'],
+  levels: SIZES.length, background: A + 'bg.webp',
+  assets: Object.assign({ plate: A + 'plate.webp', source: A + 'source.webp', sink: A + 'sink.webp', sinkOn: A + 'sink_on.webp' },
+    ...Object.keys(BASE).map(k => ({ [k]: A + k + '.webp', [k + 'W']: A + k + '_wet.webp' }))),
+  onLevel: load,
+  onReady(g) {
+    g.loop(update, render);
+    addEventListener('contextmenu', e => { if (e.target === g.cv) e.preventDefault(); });
+    addEventListener('pointerdown', e => {
+      if (e.target !== g.cv || !S || !G.playing || G.paused || S.done) return;
+      const p = g.pos(e), x = Math.floor((p.x - PAD) / T), y = Math.floor((p.y - PAD) / T);
+      if (x < 0 || y < 0 || x >= S.cw || y >= S.ch) return;
+      turn(x, y, e.button === 2 ? -1 : 1);
+    });
+  }
+});
+
+function typeOf(m) {
+  const c = [1, 2, 4, 8].filter(b => m & b).length;
+  if (c === 1) return 'end'; if (c === 4) return 'cross'; if (c === 3) return 'tee';
+  return (m === 5 || m === 10) ? 'straight' : 'corner';
+}
+function load(n) {
+  const [cw, ch] = SIZES[n - 1];
+  const N = cw * ch, sx = cw >> 1, sy = ch >> 1, src = sy * cw + sx;
+  let mask, tries = 0;
+  for (;;) {
+    mask = new Array(N).fill(0);
+    const inT = new Array(N).fill(false); inT[src] = true;
+    const front = [];
+    const addF = i => { const x = i % cw, y = (i / cw) | 0; for (const [dx, dy, b] of DIRS) { const nx = x + dx, ny = y + dy; if (nx >= 0 && ny >= 0 && nx < cw && ny < ch && !inT[ny * cw + nx]) front.push([i, ny * cw + nx, b]); } };
+    addF(src);
+    while (front.length) {
+      const k = (Math.random() * front.length) | 0; const [a, b, bit] = front.splice(k, 1)[0];
+      if (inT[b]) continue;
+      if ([1, 2, 4, 8].filter(q => mask[a] & q).length >= 3 && Math.random() < .85) { front.push([a, b, bit]); if (front.every(f => [1, 2, 4, 8].filter(q => mask[f[0]] & q).length >= 3)) { /* sin alternativa */ } else continue; }
+      inT[b] = true; mask[a] |= bit; mask[b] |= OPP[bit]; addF(b);
+    }
+    const leaves = mask.filter(m => typeOf(m) === 'end').length;
+    if (leaves >= Math.max(3, N / 6) || ++tries > 30) break;
+  }
+  const tiles = mask.map((m, i) => {
+    const type = typeOf(m), base = BASE[type];
+    const good = [0, 1, 2, 3].filter(r => rot(base, r) === m);
+    let r; do { r = (Math.random() * 4) | 0; } while (good.includes(r) && type !== 'cross');
+    const need = Math.min(...good.map(g => { const d = ((g - r) % 4 + 4) % 4; return Math.min(d, 4 - d); }));
+    return { type, base, r, ang: r * Math.PI / 2, need, wet: 0, fill: false, fillAt: 0 };
+  });
+  S = { cw, ch, src, tiles, rot: 0, min: tiles.reduce((a, t) => a + t.need, 0), t: 0, done: false };
+  G.canvas(cw * T + PAD * 2, ch * T + PAD * 2);
+  flow(); hud();
+}
+function hud() { G.hud({ Nivel: `${G.level}/${SIZES.length}`, Giros: S.rot, Mínimo: S.min, Llenas: `${S.tiles.filter(t => t.fill).length}/${S.tiles.length}`, Tiempo: Math.floor(S.t) + ' s' }); }
+const cur = t => rot(t.base, t.r);
+function turn(x, y, d) {
+  const t = S.tiles[y * S.cw + x];
+  t.r = (t.r + d + 4) % 4; S.rot++;
+  G.Sound.tone(d > 0 ? 520 : 440, .06, { type: 'triangle', vol: .1 });
+  flow(); hud();
+}
+function flow() {
+  const { cw, ch, tiles, src } = S;
+  const seen = new Array(tiles.length).fill(-1);
+  const q = [src]; seen[src] = 0; let leak = false;
+  while (q.length) {
+    const i = q.shift(), x = i % cw, y = (i / cw) | 0, m = cur(tiles[i]);
+    for (const [dx, dy, b] of DIRS) {
+      if (!(m & b)) continue;
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= cw || ny >= ch) { leak = true; continue; }
+      const j = ny * cw + nx;
+      if (!(cur(tiles[j]) & OPP[b])) { leak = true; continue; }
+      if (seen[j] < 0) { seen[j] = seen[i] + 1; q.push(j); }
+    }
+  }
+  const now = S.t;
+  tiles.forEach((t, i) => {
+    const f = seen[i] >= 0;
+    if (f && !t.fill) t.fillAt = now + seen[i] * .035;
+    t.fill = f;
+  });
+  S.leak = leak;
+  if (!leak && tiles.every(t => t.fill)) {
+    S.done = true; G.sfx('splash');
+    setTimeout(() => {
+      G.sfx('power');
+      tiles.forEach((t, i) => { if (t.type === 'end' && i !== S.src) P.burst(PAD + (i % cw) * T + T / 2, PAD + ((i / cw) | 0) * T + T / 2, 14, { color: ['#7ff7ff', '#ffffff', '#ffd84d'], speed: 200 }); });
+    }, 300);
+    const stars = S.rot <= S.min + 2 ? 3 : S.rot <= Math.round(S.min * 1.5) + 4 ? 2 : 1;
+    setTimeout(() => G.win(stars, [['Giros', S.rot], ['Mínimo', S.min], ['Tiempo', Math.floor(S.t) + ' s']], 10000 - S.rot * 20 - Math.floor(S.t)), 1100);
+  }
+}
+function update(dt) {
+  const prev = Math.floor(S.t); S.t += dt; if (Math.floor(S.t) !== prev && !S.done) hud();
+  for (const t of S.tiles) {
+    let target = t.r * Math.PI / 2, d = target - t.ang;
+    while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2;
+    t.ang += d * Math.min(1, dt * 18);
+    const want = t.fill && S.t >= t.fillAt ? 1 : 0;
+    t.wet += (want - t.wet) * Math.min(1, dt * 10);
+  }
+  P.update(dt);
+}
+function render() {
+  const ctx = G.ctx, a = G.assets; if (!ctx || !S) return;
+  const t0 = performance.now() / 1000;
+  ctx.clearRect(0, 0, G.cv.width, G.cv.height);
+  ctx.fillStyle = 'rgba(5,8,14,.75)'; ctx.beginPath(); ctx.roundRect(4, 4, G.cv.width - 8, G.cv.height - 8, 18); ctx.fill();
+  ctx.strokeStyle = S.done ? 'rgba(61,255,154,.6)' : 'rgba(46,230,255,.25)'; ctx.lineWidth = 2; ctx.stroke();
+  S.tiles.forEach((t, i) => {
+    const x = PAD + (i % S.cw) * T, y = PAD + ((i / S.cw) | 0) * T, cx = x + T / 2, cy = y + T / 2;
+    ctx.drawImage(a.plate, x, y, T, T);
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(t.ang);
+    ctx.drawImage(a[t.type], -T / 2, -T / 2, T, T);
+    if (t.wet > .01) { ctx.globalAlpha = t.wet; ctx.drawImage(a[t.type + 'W'], -T / 2, -T / 2, T, T); ctx.globalAlpha = 1; }
+    ctx.restore();
+    if (i === S.src) { const s = T * (1 + Math.sin(t0 * 4) * .04); ctx.drawImage(a.source, cx - s / 2, cy - s / 2, s, s); }
+    else if (t.type === 'end') {
+      const on = t.wet > .5; ctx.drawImage(on ? a.sinkOn : a.sink, x, y, T, T);
+    }
+  });
+  // fugas
+  if (!S.done) S.tiles.forEach((t, i) => {
+    if (!t.fill || t.wet < .5) return;
+    const x = i % S.cw, y = (i / S.cw) | 0, m = cur(t);
+    for (const [dx, dy, b] of DIRS) {
+      if (!(m & b)) continue;
+      const nx = x + dx, ny = y + dy;
+      const ok = nx >= 0 && ny >= 0 && nx < S.cw && ny < S.ch && (cur(S.tiles[ny * S.cw + nx]) & OPP[b]);
+      if (ok) continue;
+      const px = PAD + x * T + T / 2 + dx * T * .45, py = PAD + y * T + T / 2 + dy * T * .45;
+      ctx.fillStyle = `rgba(255,79,109,${.6 + Math.sin(t0 * 8) * .3})`;
+      ctx.beginPath(); ctx.arc(px, py, 6, 0, 6.283); ctx.fill();
+    }
+  });
+  P.draw(ctx);
+}
+</script>
+</body>
+</html>

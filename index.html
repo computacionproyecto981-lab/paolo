@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Arcade 12</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#06060d;--line:rgba(255,255,255,.1);--muted:#a3a3c2;--gold:#ffc83d}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:#06060d url(assets/hub/bg.webp) center top/cover fixed;color:#f2f2fa;font-family:'Outfit',system-ui,sans-serif}
+.wrap{max-width:1240px;margin:0 auto;padding:48px 24px 64px}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:34px}
+.logo{font-size:clamp(44px,7vw,84px);font-weight:900;letter-spacing:-2px;line-height:.9;margin:0}
+.logo span{background:linear-gradient(90deg,#ff3df0,#ffb347,#2ee6ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--muted);font-size:18px;margin:12px 0 0;max-width:560px;line-height:1.45}
+.total{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:18px;padding:16px 22px;text-align:right;backdrop-filter:blur(10px)}
+.total b{display:block;font-size:34px;color:var(--gold)}
+.total small{color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;font-size:11px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px}
+.filters button{font:inherit;font-weight:600;color:#ddd;background:rgba(255,255,255,.05);border:1px solid var(--line);padding:9px 16px;border-radius:999px;cursor:pointer;transition:.15s}
+.filters button:hover{color:#fff;border-color:rgba(255,255,255,.3)}
+.filters button.on{background:#fff;color:#0b0b14}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:20px}
+.card{position:relative;display:flex;flex-direction:column;border-radius:20px;overflow:hidden;background:rgba(14,14,26,.82);border:1px solid var(--line);text-decoration:none;color:inherit;transition:transform .25s cubic-bezier(.2,1.2,.4,1),box-shadow .25s,border-color .25s;backdrop-filter:blur(8px)}
+.card:hover{transform:translateY(-6px);border-color:var(--c);box-shadow:0 24px 60px rgba(0,0,0,.5),0 0 0 1px var(--c),0 0 40px color-mix(in srgb,var(--c) 30%,transparent)}
+.thumb{position:relative;aspect-ratio:16/10;overflow:hidden}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s}
+.card:hover .thumb img{transform:scale(1.06)}
+.num{position:absolute;top:12px;left:12px;font-weight:900;font-size:13px;background:rgba(0,0,0,.6);border:1px solid var(--line);padding:4px 9px;border-radius:8px;backdrop-filter:blur(6px)}
+.tag{position:absolute;top:12px;right:12px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#0b0b14;background:var(--c);padding:5px 10px;border-radius:999px}
+.body{padding:16px 18px 18px;display:flex;flex-direction:column;gap:8px;flex:1}
+.body h3{margin:0;font-size:21px;letter-spacing:-.3px}
+.body p{margin:0;color:var(--muted);font-size:14px;line-height:1.45;flex:1}
+.prog{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--gold);font-weight:700}
+.bar{flex:1;height:6px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--c),#fff)}
+.play{margin-top:4px;display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:14px}
+.play span:last-child{background:var(--c);color:#0b0b14;padding:7px 14px;border-radius:10px}
+footer{margin-top:44px;color:var(--muted);font-size:13px;text-align:center}
+footer button{font:inherit;color:var(--muted);background:none;border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer;margin-left:8px}
+@media (max-width:600px){.wrap{padding:28px 16px 48px}.total{text-align:left}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1 class="logo">ARCADE <span>12</span></h1>
+      <p class="sub">Doce juegos originales, cada uno con su propia mecánica, arte y niveles. Gana estrellas, desbloquea niveles y domina cada estilo.</p>
+    </div>
+    <div class="total"><small>Estrellas totales</small><b id="total">0</b><small id="totalOf"></small></div>
+  </header>
+  <nav class="filters" id="filters"></nav>
+  <main class="grid" id="grid"></main>
+  <footer>Tu progreso se guarda en este navegador. <button id="reset">Borrar progreso</button></footer>
+</div>
+<script>
+'use strict';
+const GAMES = [
+  { id: 'cripta', title: 'Cripta de Cajas', genre: 'Puzle', cat: 'Puzle', levels: 12, c: '#ffc23d', d: 'Empuja cofres sagrados sobre runas doradas. Piensa antes de mover: no puedes tirar de ellos.' },
+  { id: 'lunar', title: 'Salto Lunar', genre: 'Plataformas', cat: 'Acción', levels: 10, c: '#b47cff', d: 'Corre y salta por la luna, aplasta slimes, esquiva pinchos y recoge todas las estrellas.' },
+  { id: 'nebula', title: 'Nébula Defender', genre: 'Shooter', cat: 'Acción', levels: 10, c: '#33e1ff', d: 'Oleadas alienígenas, potenciadores de armas y escudos, y naves nodriza como jefes finales.' },
+  { id: 'gemas', title: 'Gemas Arcanas', genre: 'Combina 3', cat: 'Puzle', levels: 10, c: '#2ee6ff', d: 'Intercambia gemas, crea gemas rayo y bombas, y encadena combos antes de quedarte sin jugadas.' },
+  { id: 'neon', title: 'Ladrillo Neón', genre: 'Rompebloques', cat: 'Habilidad', levels: 10, c: '#ff3df0', d: 'Rebota la esfera de plasma contra muros de ladrillos synthwave con multibola y barra ancha.' },
+  { id: 'bastion', title: 'Bastión', genre: 'Estrategia', cat: 'Estrategia', levels: 8, c: '#7bdc5a', d: 'Defensa de torres: ballestas, cañones y escarcha contra goblins, orcos, caballeros y murciélagos.' },
+  { id: 'memoria', title: 'Memoria Mística', genre: 'Memoria', cat: 'Puzle', levels: 10, c: '#e6c36a', d: 'Encuentra las parejas de cartas encantadas contra el reloj. Las rachas te regalan tiempo.' },
+  { id: 'serpiente', title: 'Serpiente de la Selva', genre: 'Arcade', cat: 'Habilidad', levels: 10, c: '#7dff5a', d: 'Devora frutas, crece y esquiva rocas. En los niveles finales los bordes te teletransportan.' },
+  { id: 'teclado', title: 'Lluvia de Meteoros', genre: 'Mecanografía', cat: 'Habilidad', levels: 10, c: '#2ee6ff', d: 'Escribe la palabra de cada meteorito para que el láser lo destruya antes de que caiga sobre la ciudad.' },
+  { id: 'golf', title: 'Mini Golf Zen', genre: 'Física', cat: 'Habilidad', levels: 9, c: '#7bdc5a', d: 'Nueve hoyos con arena, agua, rebotadores y compuertas móviles. Apunta, tensa y suelta.' },
+  { id: 'pulso', title: 'Pulso Neón', genre: 'Ritmo', cat: 'Acción', levels: 10, c: '#ff4f8b', d: 'Juego musical de 4 carriles: cada nota que aciertas toca la melodía de la canción.' },
+  { id: 'flujo', title: 'Flujo', genre: 'Conexión', cat: 'Puzle', levels: 10, c: '#2ee6ff', d: 'Gira tuberías para llevar el agua de la bomba a todos los desagües sin una sola fuga.' }
+];
+const read = () => { try { return JSON.parse(localStorage.getItem('arcade12.progress.v1')) || {}; } catch (e) { return {}; } };
+let filter = 'Todos';
+function render() {
+  const prog = read(); let total = 0, max = 0;
+  const grid = document.getElementById('grid'); grid.innerHTML = '';
+  GAMES.forEach((g, i) => {
+    const p = prog[g.id] || {}, stars = Object.values(p.stars || {}).reduce((a, b) => a + b, 0);
+    total += stars; max += g.levels * 3;
+    if (filter !== 'Todos' && g.cat !== filter) return;
+    const a = document.createElement('a'); a.className = 'card'; a.href = `games/${g.id}.html`; a.style.setProperty('--c', g.c);
+    const done = Math.min(g.levels, (p.unlocked || 1) - 1);
+    a.innerHTML = `<div class="thumb"><img src="assets/covers/${g.id}.webp" alt="" loading="lazy"><span class="num">${String(i + 1).padStart(2, '0')}</span><span class="tag">${g.genre}</span></div>
+      <div class="body"><h3>${g.title}</h3><p>${g.d}</p>
+      <div class="prog">★ ${stars}/${g.levels * 3}<div class="bar"><i style="width:${stars / (g.levels * 3) * 100}%"></i></div></div>
+      <div class="play"><span style="color:var(--muted);font-weight:600">${done}/${g.levels} niveles</span><span>${done ? 'Continuar' : 'Jugar'}</span></div></div>`;
+    grid.append(a);
+  });
+  document.getElementById('total').textContent = total;
+  document.getElementById('totalOf').textContent = `de ${max} posibles`;
+}
+const cats = ['Todos', ...new Set(GAMES.map(g => g.cat))];
+const nav = document.getElementById('filters');
+cats.forEach(c => { const b = document.createElement('button'); b.textContent = c; b.className = c === filter ? 'on' : ''; b.onclick = () => { filter = c; [...nav.children].forEach(x => x.className = x === b ? 'on' : ''); render(); }; nav.append(b); });
+document.getElementById('reset').onclick = () => { if (confirm('¿Borrar todo el progreso y las estrellas?')) { try { localStorage.removeItem('arcade12.progress.v1'); } catch (e) { } render(); } };
+addEventListener('pageshow', render);
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lluvia de Meteoros</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/style.css">
+<style>#kb{position:fixed;opacity:0;left:-100px;top:0;width:10px;height:10px}</style>
+</head>
+<body>
+<div id="app"></div>
+<input id="kb" autocomplete="off" autocapitalize="none" spellcheck="false">
+<script src="../shared/engine.js"></script>
+<script>
+'use strict';
+const W = 960, H = 540, GROUND = 470, CX = W / 2, CY = 500;
+const A = '../assets/teclado/';
+// Vocabulario en español sin tildes, agrupado por longitud
+const VOCAB = `sol mar luz paz red ola pan oro rio ave gas ojo pie sal voz dia ley fin uno dos mes
+luna roca nube faro mapa nave ruta onda gato lobo isla flor rayo polo dato casa mesa azul rojo lago tren cine cafe hora piso
+astro plano radar campo noche fuego tigre nieve barco verde playa clima rueda dulce brisa hielo cielo ciclo silla perro libro papel lapiz negro calle selva valle arena metal fruta limon melon queso leche huevo carne arroz tarde ahora nunca lento claro fresco amigo reloj piano danza poema juego motor avion barca
+cometa tierra viento cosmos escudo codigo orbita cohete trueno ciudad pueblo camino bosque oceano montes ladera cumbre piedra madera banana sandia tomate harina azucar manana rapido fuerte grande enorme oscuro alumno tiempo minuto semana musica tambor flauta violin teatro cuento novela equipo pelota estadio
+planeta galaxia cristal palabra sistema tablero energia destino teclado ventana puentes mensaje naranja manzana cebolla siempre gigante pequeno hermano familia escuela maestro pizarra mochila segundo cancion partida derrota jugador portero raqueta
+estrella gravedad satelite universo aventura fantasia luminoso horizonte desierto caliente templado cuaderno guitarra historia victoria mariposa pelicula
+meteorito constante tormentas bicicleta chocolate brillante velocidad asteroide ingeniero
+tecnologia astronauta telescopio computador calendario biblioteca dinosaurio arquitecto aeropuerto`.split(/\s+/);
+const WORDS = {};
+for (const w of VOCAB) (WORDS[w.length] = WORDS[w.length] || []).includes(w) || WORDS[w.length].push(w);
+const LV = [
+  { n: 10, lens: [3, 4], every: 2.4, sp: 32 }, { n: 12, lens: [3, 4, 5], every: 2.2, sp: 36 }, { n: 14, lens: [4, 5], every: 2.0, sp: 40 },
+  { n: 16, lens: [4, 5, 6], every: 1.9, sp: 44 }, { n: 18, lens: [5, 6], every: 1.75, sp: 48 }, { n: 20, lens: [5, 6, 7], every: 1.6, sp: 52 },
+  { n: 22, lens: [6, 7, 8], every: 1.5, sp: 55 }, { n: 24, lens: [6, 7, 8], every: 1.35, sp: 58 }, { n: 26, lens: [7, 8, 9], every: 1.25, sp: 60 },
+  { n: 30, lens: [6, 7, 8, 9, 10], every: 1.1, sp: 64 }
+];
+const P = new Engine.Particles();
+let S = null;
+
+const G = Engine.create({
+  id: 'teclado', title: 'Lluvia de Meteoros', genre: 'Mecanografía', accent: '#2ee6ff', typing: true,
+  tagline: 'Escribe la palabra de cada meteorito para que el cañón láser lo destruya antes de que alcance la ciudad.',
+  help: ['<b>Escribe</b> la palabra que lleva un meteorito para fijarlo y destruirlo', 'Tras la primera letra, el cañón queda fijado en ese objetivo', 'Cada error de tecleo baja tu precisión', '<b>Esc</b> pausa · Precisión 95%+ = ★★★'],
+  levels: LV.length, maxScale: 1.4,
+  assets: { bg: A + 'bg.webp', meteor: A + 'meteor.webp', cannon: A + 'cannon.webp' },
+  onLevel: load,
+  onReady(g) {
+    g.canvas(W, H); g.loop(update, render);
+    const kb = document.getElementById('kb');
+    g.cv.addEventListener('pointerdown', () => kb.focus());
+    kb.addEventListener('input', () => { for (const ch of kb.value) type(ch); kb.value = ''; });
+  }
+});
+
+function load(n) {
+  const cfg = LV[n - 1];
+  S = { cfg, meteors: [], lasers: [], spawned: 0, killed: 0, shields: 3, keys: 0, errors: 0, score: 0, combo: 0, target: null, timer: .8, t: 0, shake: 0, ang: -Math.PI / 2, used: new Set() };
+  P.clear(); hud();
+}
+function hud() {
+  const acc = S.keys ? Math.round((S.keys - S.errors) / S.keys * 100) : 100;
+  G.hud({ Nivel: `${G.level}/${LV.length}`, Restantes: S.cfg.n - S.killed, Escudos: '⬢'.repeat(S.shields) || '—', Precisión: acc + '%', Puntos: S.score });
+}
+function pickWord() {
+  const lens = S.cfg.lens;
+  for (let tries = 0; tries < 30; tries++) {
+    const L = lens[(Math.random() * lens.length) | 0], list = WORDS[L];
+    const w = list[(Math.random() * list.length) | 0];
+    if (S.meteors.some(m => m.word[0] === w[0])) continue;
+    if (S.used.has(w) && tries < 20) continue;
+    S.used.add(w); return w;
+  }
+  return WORDS[4][(Math.random() * WORDS[4].length) | 0];
+}
+function spawn() {
+  const word = pickWord();
+  const x = 90 + Math.random() * (W - 180);
+  S.meteors.push({ word, typed: 0, x, y: -50, vx: (CX - x) * .02, vy: S.cfg.sp * (.85 + Math.random() * .3), rot: Math.random() * 6, spin: (Math.random() - .5) * 2 });
+  S.spawned++;
+}
+addEventListener('keydown', e => {
+  if (e.target && e.target.id === 'kb') return;
+  if (e.ctrlKey || e.metaKey || e.altKey || e.key.length !== 1) return;
+  e.preventDefault(); type(e.key);
+});
+function type(ch) {
+  if (!S || !G.playing || G.paused) return;
+  ch = ch.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  if (ch === 'ñ') ch = 'n';
+  if (!/[a-z]/.test(ch)) return;
+  S.keys++;
+  let m = S.target;
+  if (!m) {
+    const cands = S.meteors.filter(o => o.word[0] === ch).sort((a, b) => b.y - a.y);
+    m = cands[0];
+    if (m) S.target = m;
+  }
+  if (m && m.word[m.typed] === ch) {
+    m.typed++; G.Sound.tone(500 + m.typed * 40, .04, { type: 'square', vol: .04 });
+    S.lasers.push({ x: m.x, y: m.y, t: .12, small: true });
+    if (m.typed >= m.word.length) destroy(m);
+  } else {
+    S.errors++; S.combo = 0; G.sfx('error');
+    if (m) m.err = .25;
+  }
+  hud();
+}
+function destroy(m) {
+  m.dead = true; S.target = null; S.killed++; S.combo++;
+  const pts = m.word.length * 10 * (1 + Math.min(S.combo, 10) * .1);
+  S.score += Math.round(pts);
+  S.lasers.push({ x: m.x, y: m.y, t: .25 });
+  G.sfx('laser'); setTimeout(() => G.sfx('explode'), 60);
+  P.burst(m.x, m.y, 30, { color: ['#ffb347', '#ff3d1f', '#ffe14d', '#ffffff'], speed: 320, life: .8, gravity: 200 });
+  P.text(m.x, m.y - 20, '+' + Math.round(pts), { color: '#7ff7ff', size: 20 });
+  if (S.killed >= S.cfg.n) {
+    const acc = S.keys ? (S.keys - S.errors) / S.keys : 1;
+    const stars = acc >= .95 && S.shields === 3 ? 3 : acc >= .85 && S.shields >= 2 ? 2 : 1;
+    S.score += S.shields * 200;
+    setTimeout(() => G.win(stars, [['Precisión', Math.round(acc * 100) + '%'], ['Escudos', `${S.shields}/3`], ['Teclas', S.keys], ['Puntos', S.score]], S.score), 700);
+  }
+}
+function update(dt) {
+  S.t += dt; S.shake = Math.max(0, S.shake - dt);
+  if (S.spawned < S.cfg.n) { S.timer -= dt; if (S.timer <= 0) { spawn(); S.timer = S.cfg.every * (.8 + Math.random() * .4); } }
+  for (const m of S.meteors) {
+    m.y += m.vy * dt; m.x += m.vx * dt; m.rot += m.spin * dt; m.err = Math.max(0, (m.err || 0) - dt);
+    if (m.y >= GROUND - 20 && !m.dead) {
+      m.dead = true; if (S.target === m) S.target = null;
+      S.shields--; S.shake = .5; S.combo = 0; S.killed++;
+      G.sfx('explode'); P.burst(m.x, GROUND - 10, 40, { color: ['#ff3d1f', '#ffb347', '#2ee6ff'], speed: 360, gravity: 400 });
+      hud();
+      if (S.shields <= 0) { G.lose('La ciudad ha sido alcanzada', [['Destruidos', S.killed], ['Puntos', S.score]]); return; }
+      if (S.killed >= S.cfg.n) { const acc = S.keys ? (S.keys - S.errors) / S.keys : 1; setTimeout(() => G.win(1, [['Precisión', Math.round(acc * 100) + '%'], ['Escudos', `${S.shields}/3`], ['Puntos', S.score]], S.score), 700); }
+    }
+  }
+  S.meteors = S.meteors.filter(m => !m.dead);
+  for (const l of S.lasers) l.t -= dt;
+  S.lasers = S.lasers.filter(l => l.t > 0);
+  const tg = S.target || S.meteors.slice().sort((a, b) => b.y - a.y)[0];
+  const want = tg ? Math.atan2(tg.y - CY, tg.x - CX) : -Math.PI / 2;
+  S.ang += (want - S.ang) * Math.min(1, dt * 10);
+  P.update(dt);
+}
+function render() {
+  const ctx = G.ctx, a = G.assets; if (!ctx || !S) return;
+  const t = performance.now() / 1000;
+  ctx.save();
+  if (S.shake) ctx.translate((Math.random() - .5) * 16 * S.shake, (Math.random() - .5) * 16 * S.shake);
+  ctx.drawImage(a.bg, 0, 0, W, H);
+  // escudo de la ciudad
+  ctx.strokeStyle = `rgba(46,230,255,${.15 + S.shields * .12 + Math.sin(t * 3) * .05})`; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.ellipse(CX, GROUND + 140, 620, 170, 0, Math.PI, 0); ctx.stroke();
+  for (const l of S.lasers) {
+    ctx.strokeStyle = l.small ? `rgba(127,247,255,${l.t / .12 * .6})` : `rgba(255,255,255,${l.t / .25})`;
+    ctx.lineWidth = l.small ? 2 : 6; ctx.shadowColor = '#2ee6ff'; ctx.shadowBlur = 20;
+    ctx.beginPath(); ctx.moveTo(CX + Math.cos(S.ang) * 40, CY + Math.sin(S.ang) * 40); ctx.lineTo(l.x, l.y); ctx.stroke(); ctx.shadowBlur = 0;
+  }
+  for (const m of S.meteors) {
+    ctx.save(); ctx.translate(m.x, m.y);
+    const dir = Math.atan2(m.vy, m.vx) - Math.PI / 2;
+    ctx.rotate(dir); ctx.drawImage(a.meteor, -48, -64, 96, 96); ctx.restore();
+    // etiqueta
+    ctx.font = '700 20px "JetBrains Mono", monospace';
+    const tw = ctx.measureText(m.word).width, bx = m.x - tw / 2 - 10, by = m.y + 30;
+    const isT = S.target === m;
+    ctx.fillStyle = isT ? 'rgba(46,230,255,.25)' : 'rgba(5,8,20,.75)';
+    ctx.strokeStyle = m.err ? '#ff4f6d' : isT ? '#7ff7ff' : 'rgba(255,255,255,.2)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(bx, by, tw + 20, 30, 8); ctx.fill(); ctx.stroke();
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    const done = m.word.slice(0, m.typed), rest = m.word.slice(m.typed);
+    ctx.fillStyle = '#ffd84d'; ctx.fillText(done, bx + 10, by + 16);
+    ctx.fillStyle = '#ffffff'; ctx.fillText(rest, bx + 10 + ctx.measureText(done).width, by + 16);
+    ctx.textBaseline = 'alphabetic';
+  }
+  ctx.save(); ctx.translate(CX, CY); ctx.rotate(S.ang + Math.PI / 2); ctx.drawImage(a.cannon, -48, -58, 96, 96); ctx.restore();
+  P.draw(ctx);
+  // barra de progreso
+  ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(20, 16, W - 40, 6);
+  ctx.fillStyle = '#2ee6ff'; ctx.fillRect(20, 16, (W - 40) * S.killed / S.cfg.n, 6);
+  if (S.combo >= 3) { ctx.fillStyle = '#ffd84d'; ctx.font = '800 22px Outfit, sans-serif'; ctx.textAlign = 'right'; ctx.fillText(`COMBO x${S.combo}`, W - 24, 50); }
+  ctx.restore();
+}
+</script>
+</body>
+</html>

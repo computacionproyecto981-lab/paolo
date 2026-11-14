@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cripta de Cajas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/style.css">
+</head>
+<body>
+<div id="app"></div>
+<script src="../shared/engine.js"></script>
+<script>
+'use strict';
+// Niveles verificados con un resolvedor BFS; OPT = movimientos mínimos.
+const LEVELS = [
+`#######
+#     #
+# @$ .#
+#     #
+#######`,
+`######
+#    #
+# $$ #
+#@.. #
+######`,
+`#######
+#.  ..#
+# $$$ #
+#  @  #
+#######`,
+` #####
+##   #
+#  $ #
+# #$.##
+# . @ #
+#######`,
+` #######
+ #     #
+ # $$$ #
+##.#.#.##
+#   @   #
+#########`,
+`########
+#  .   #
+# ##$# #
+#  @   #
+# #$## #
+#   .  #
+########`,
+`########
+#      #
+# $.$. #
+#.$@$.##
+# $.$. #
+#      #
+########`,
+`  ######
+  #    #
+### $$ #
+#  .#. #
+# $ . .#
+### $ ##
+  # @ #
+  #####`,
+` ########
+ #  #   #
+ # $  $ #
+## #..# #
+#   ..  #
+# $  #$ #
+#  @    #
+#########`,
+`#########
+#   #   #
+# $ . $ #
+##.# #.##
+#  $ $  #
+# @ .   #
+#########`,
+`#########
+#   .   #
+# #$#$# #
+# . @ . #
+# #$#$# #
+#   .   #
+#########`,
+`##########
+#   ##   #
+# $    $ #
+#  #..#  #
+## #..# ##
+#  $  $  #
+#   @    #
+##########`
+];
+const OPT = [2, 7, 13, 16, 18, 19, 22, 23, 38, 41, 57, 69];
+const T = 64;
+const A = '../assets/cripta/';
+let S = null; // estado del nivel
+
+const G = Engine.create({
+  id: 'cripta', title: 'Cripta de Cajas', genre: 'Puzle de empuje', accent: '#ffc23d',
+  tagline: 'Empuja los cofres sagrados hasta las runas doradas para abrir el sello de cada cámara.',
+  help: ['<b>Flechas / WASD</b> o desliza para moverte', 'Solo puedes <b>empujar</b> cofres, nunca tirar de ellos', '<b>Z</b> o <b>Retroceso</b> deshace · <b>R</b> reinicia', 'Menos movimientos = más estrellas'],
+  levels: LEVELS.length, background: A + 'bg.webp',
+  assets: { f0: A + 'floor0.webp', f1: A + 'floor1.webp', wall: A + 'wall.webp', box: A + 'box.webp', boxon: A + 'boxon.webp', target: A + 'target.webp', player: A + 'player.webp' },
+  onLevel: load,
+  onReady(g) {
+    g.loop(update, render);
+    g.touch([{ label: '◀', code: 'ArrowLeft', down: () => move(-1, 0) }, { label: '▶', code: 'ArrowRight', down: () => move(1, 0) }],
+            [{ label: '↶', code: 'KeyZ', down: undo }, { label: '▲', code: 'ArrowUp', down: () => move(0, -1) }, { label: '▼', code: 'ArrowDown', down: () => move(0, 1) }]);
+  }
+});
+
+function load(n) {
+  const rows = LEVELS[n - 1].split('\n');
+  const H = rows.length, W = Math.max(...rows.map(r => r.length));
+  const grid = rows.map(r => [...r.padEnd(W)]);
+  S = { W, H, wall: [], goal: [], inside: [], boxes: [], p: null, face: 1, moves: 0, pushes: 0, hist: [], done: false, t: 0, bump: 0 };
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const c = grid[y][x];
+    S.wall.push(c === '#'); S.goal.push('.*+'.includes(c)); S.inside.push(false);
+    if ('$*'.includes(c)) S.boxes.push({ x, y, dx: x, dy: y });
+    if ('@+'.includes(c)) S.p = { x, y, dx: x, dy: y };
+  }
+  // relleno para saber qué celdas son suelo interior
+  const st = [[S.p.x, S.p.y]];
+  while (st.length) {
+    const [x, y] = st.pop(), i = y * W + x;
+    if (x < 0 || y < 0 || x >= W || y >= H || S.inside[i] || S.wall[i]) continue;
+    S.inside[i] = true; st.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+  }
+  G.canvas(W * T, H * T);
+  hud();
+}
+const idx = (x, y) => y * S.W + x;
+const isWall = (x, y) => x < 0 || y < 0 || x >= S.W || y >= S.H || S.wall[idx(x, y)];
+const boxAt = (x, y) => S.boxes.find(b => b.x === x && b.y === y);
+function hud() { G.hud({ Nivel: `${G.level}/${LEVELS.length}`, Movimientos: S.moves, Empujes: S.pushes, Récord: OPT[G.level - 1] }); }
+
+function move(dx, dy) {
+  if (!S || S.done || G.paused || !G.playing) return;
+  if (dx) S.face = dx;
+  const nx = S.p.x + dx, ny = S.p.y + dy;
+  if (isWall(nx, ny)) { S.bump = .12; G.sfx('bump'); return; }
+  const b = boxAt(nx, ny);
+  if (b && (isWall(nx + dx, ny + dy) || boxAt(nx + dx, ny + dy))) { S.bump = .12; G.sfx('bump'); return; }
+  S.hist.push({ p: [S.p.x, S.p.y], b: S.boxes.map(b => [b.x, b.y]), m: S.moves, u: S.pushes });
+  if (b) {
+    b.x += dx; b.y += dy; S.pushes++;
+    G.sfx(S.goal[idx(b.x, b.y)] ? 'coin' : 'swap');
+  } else G.sfx('move');
+  S.p.x = nx; S.p.y = ny; S.moves++;
+  hud();
+  if (S.boxes.every(b => S.goal[idx(b.x, b.y)])) {
+    S.done = true;
+    const opt = OPT[G.level - 1];
+    const stars = S.moves <= opt + 2 ? 3 : S.moves <= Math.round(opt * 1.5) + 6 ? 2 : 1;
+    setTimeout(() => G.win(stars, [['Movimientos', S.moves], ['Empujes', S.pushes], ['Mínimo posible', opt]], 100000 - S.moves), 450);
+  }
+}
+function undo() {
+  if (!S || S.done || !S.hist.length || G.paused) return;
+  const h = S.hist.pop();
+  S.p.x = h.p[0]; S.p.y = h.p[1];
+  S.boxes.forEach((b, i) => { b.x = h.b[i][0]; b.y = h.b[i][1]; });
+  S.moves = h.m; S.pushes = h.u; G.sfx('click'); hud();
+}
+addEventListener('keydown', e => {
+  if (e.repeat && !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyA', 'KeyD', 'KeyW', 'KeyS'].includes(e.code)) return;
+  const k = e.code;
+  if (k === 'ArrowLeft' || k === 'KeyA') move(-1, 0);
+  else if (k === 'ArrowRight' || k === 'KeyD') move(1, 0);
+  else if (k === 'ArrowUp' || k === 'KeyW') move(0, -1);
+  else if (k === 'ArrowDown' || k === 'KeyS') move(0, 1);
+  else if (k === 'KeyZ' || k === 'Backspace') undo();
+});
+document.addEventListener('DOMContentLoaded', () => {});
+setTimeout(() => G.swipe(document.querySelector('.stage'), (dx, dy) => move(dx, dy)), 0);
+
+function update(dt) {
+  S.t += dt; S.bump = Math.max(0, S.bump - dt);
+  const k = 1 - Math.exp(-dt * 22);
+  for (const o of [S.p, ...S.boxes]) { o.dx += (o.x - o.dx) * k; o.dy += (o.y - o.dy) * k; }
+}
+function render() {
+  const ctx = G.ctx; if (!S || !ctx) return;
+  const a = G.assets, t = performance.now() / 1000;
+  ctx.clearRect(0, 0, G.cv.width, G.cv.height);
+  for (let y = 0; y < S.H; y++) for (let x = 0; x < S.W; x++) {
+    const i = idx(x, y);
+    if (S.inside[i]) {
+      ctx.drawImage((x * 7 + y * 3) % 5 === 0 ? a.f1 : a.f0, x * T, y * T, T, T);
+      if (isWall(x, y - 1)) { const g = ctx.createLinearGradient(0, y * T, 0, y * T + 22); g.addColorStop(0, 'rgba(0,0,0,.55)'); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(x * T, y * T, T, 22); }
+      if (isWall(x - 1, y)) { const g = ctx.createLinearGradient(x * T, 0, x * T + 14, 0); g.addColorStop(0, 'rgba(0,0,0,.35)'); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(x * T, y * T, 14, T); }
+    }
+  }
+  for (let y = 0; y < S.H; y++) for (let x = 0; x < S.W; x++) if (S.wall[idx(x, y)]) ctx.drawImage(a.wall, x * T, y * T, T, T);
+  for (let y = 0; y < S.H; y++) for (let x = 0; x < S.W; x++) if (S.goal[idx(x, y)]) {
+    ctx.globalAlpha = .75 + Math.sin(t * 3 + x + y) * .25;
+    ctx.drawImage(a.target, x * T, y * T, T, T);
+    ctx.globalAlpha = 1;
+  }
+  for (const b of S.boxes) {
+    const on = S.goal[idx(b.x, b.y)];
+    ctx.drawImage(on ? a.boxon : a.box, b.dx * T, b.dy * T, T, T);
+  }
+  const p = S.p, bob = Math.sin(t * 6) * 1.5, sh = S.bump ? Math.sin(S.bump * 80) * 3 : 0;
+  ctx.save();
+  ctx.translate(p.dx * T + T / 2 + sh, p.dy * T + T / 2 + bob);
+  ctx.scale(S.face, 1);
+  ctx.drawImage(a.player, -T / 2, -T / 2 - 4, T, T);
+  ctx.restore();
+}
+</script>
+</body>
+</html>

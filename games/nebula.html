@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nébula Defender</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/style.css">
+</head>
+<body>
+<div id="app"></div>
+<script src="../shared/engine.js"></script>
+<script>
+'use strict';
+const W = 540, H = 900, A = '../assets/nebula/';
+const NLEV = 10;
+const P = new Engine.Particles();
+let S = null;
+
+const G = Engine.create({
+  id: 'nebula', title: 'Nébula Defender', genre: 'Shooter espacial', accent: '#33e1ff',
+  tagline: 'Pilota el caza estelar, resiste oleadas alienígenas y derrota a las naves nodriza.',
+  help: ['<b>Ratón / dedo</b>: la nave sigue tu puntero', '<b>Flechas / WASD</b> también mueven la nave', 'El disparo es automático', 'Cápsulas: <b>naranja</b> = más armas, <b>azul</b> = escudo, <b>verde</b> = reparar'],
+  levels: NLEV, maxScale: 1.2,
+  assets: { bg: A + 'bg.webp', ship: A + 'ship.webp', a: A + 'enemy_a.webp', b: A + 'enemy_b.webp', c: A + 'enemy_c.webp', boss: A + 'boss.webp',
+    pw: A + 'p_weapon.webp', ps: A + 'p_shield.webp', ph: A + 'p_heal.webp' },
+  onLevel: load,
+  onReady(g) {
+    g.canvas(W, H); g.loop(update, render);
+    const mv = e => { if (!S) return; const p = g.pos(e); S.target = { x: p.x, y: p.y - (e.pointerType === 'touch' ? 70 : 0) }; };
+    g.cv.addEventListener('pointermove', mv);
+    g.cv.addEventListener('pointerdown', mv);
+    g.cv.addEventListener('pointerleave', () => { if (S) S.target = null; });
+  }
+});
+
+const TYPES = {
+  a: { hp: 2, r: 20, score: 100, img: 'a' },
+  b: { hp: 1, r: 18, score: 120, img: 'b' },
+  c: { hp: 8, r: 28, score: 400, img: 'c' }
+};
+
+function load(n) {
+  const rnd = Engine.rng(n * 7919);
+  const waves = [];
+  const count = 4 + n;
+  for (let i = 0; i < count; i++) {
+    const pool = ['line', 'snake'];
+    if (n >= 2) pool.push('dive');
+    if (n >= 3) pool.push('heavy');
+    if (n >= 6) pool.push('mixed');
+    waves.push(pool[(rnd() * pool.length) | 0]);
+  }
+  S = {
+    n, rnd, waves, wave: -1, delay: 1.5, enemies: [], shots: [], foes: [], items: [], t: 0, score: 0,
+    ship: { x: W / 2, y: H - 120, hp: 5, inv: 2, weapon: 1, shield: 0, fire: 0 },
+    target: null, boss: null, bossDone: !(n % 5 === 0 || n === NLEV), shake: 0, scroll: 0, kills: 0, spawned: 0, hits: 0
+  };
+  P.clear(); hud();
+  G.toast(n % 5 === 0 ? `Sector ${n}: ¡Se detecta una nave nodriza!` : `Sector ${n}`);
+}
+function hud() {
+  G.hud({ Sector: `${S.n}/${NLEV}`, Oleada: `${Math.max(0, Math.min(S.wave + 1, S.waves.length))}/${S.waves.length}`, Casco: '▮'.repeat(S.ship.hp) + '▯'.repeat(Math.max(0, 5 - S.ship.hp)), Puntos: S.score });
+}
+const speedK = () => 1 + (S.n - 1) * .08;
+
+function spawnWave(kind) {
+  const n = S.n, k = speedK();
+  const add = (type, x, y, beh, o = {}) => { const T = TYPES[type]; S.enemies.push({ type, x, y, hp: T.hp + (type === 'c' ? Math.floor(n / 3) : 0), r: T.r, beh, t: 0, fire: 1 + S.rnd() * 2, flash: 0, ...o }); S.spawned++; };
+  if (kind === 'line') {
+    const c = 5 + Math.min(3, n >> 1);
+    for (let i = 0; i < c; i++) add('a', 60 + i * (W - 120) / (c - 1), -40 - i * 30, 'hover', { ty: 110 + (i % 2) * 60, bx: 60 + i * (W - 120) / (c - 1) });
+  } else if (kind === 'snake') {
+    const side = S.rnd() < .5 ? 1 : -1;
+    for (let i = 0; i < 8; i++) add('a', W / 2, -40 - i * 55, 'sine', { bx: W / 2 + side * 60, amp: 170, vy: 120 * k });
+  } else if (kind === 'dive') {
+    const c = 5 + Math.min(4, n >> 1);
+    for (let i = 0; i < c; i++) add('b', 50 + S.rnd() * (W - 100), -40 - i * 70, 'dive', { vy: 170 * k });
+  } else if (kind === 'heavy') {
+    const c = 1 + Math.min(2, Math.floor(n / 4));
+    for (let i = 0; i < c; i++) add('c', (i + 1) * W / (c + 1), -60, 'heavy', { ty: 150 + i % 2 * 50, bx: (i + 1) * W / (c + 1) });
+    for (let i = 0; i < 4; i++) add('b', 80 + i * 120, -200 - i * 50, 'dive', { vy: 160 * k });
+  } else {
+    add('c', W / 2, -60, 'heavy', { ty: 140, bx: W / 2 });
+    for (let i = 0; i < 6; i++) add('a', 70 + i * 80, -100 - i * 30, 'hover', { ty: 230 + (i % 2) * 40, bx: 70 + i * 80 });
+    for (let i = 0; i < 3; i++) add('b', 100 + i * 170, -400, 'dive', { vy: 190 * k });
+  }
+}
+function spawnBoss() {
+  const big = S.n === NLEV;
+  S.boss = { x: W / 2, y: -120, hp: big ? 160 : 90, max: big ? 160 : 90, t: 0, phase: 0, fire: 1.5, flash: 0, big };
+  G.toast('¡NAVE NODRIZA!'); G.sfx('power');
+}
+function enemyShot(x, y, ang, sp = 260, col = '#ff4f6d') { S.foes.push({ x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, col, r: 6 }); }
+function aim(x, y) { return Math.atan2(S.ship.y - y, S.ship.x - x); }
+
+function damageShip() {
+  const s = S.ship; if (s.inv > 0) return;
+  if (s.shield > 0) { s.shield = 0; s.inv = 1; G.sfx('hit'); P.burst(s.x, s.y, 20, { color: '#36c5ff', speed: 260 }); return; }
+  s.hp--; s.inv = 1.6; S.hits++; S.shake = .35; s.weapon = Math.max(1, s.weapon - 1);
+  G.sfx('explode'); P.burst(s.x, s.y, 30, { color: ['#ffffff', '#33e1ff', '#ff9f1c'], speed: 300 });
+  hud();
+  if (s.hp <= 0) G.lose('Nave destruida', [['Sector', S.n], ['Puntos', S.score], ['Derribos', S.kills]]);
+}
+function killEnemy(e) {
+  S.kills++; S.score += TYPES[e.type].score; hud();
+  G.sfx(e.type === 'c' ? 'explode' : 'pop');
+  P.burst(e.x, e.y, e.type === 'c' ? 36 : 18, { color: e.type === 'a' ? ['#ff6b6b', '#ffe14d'] : e.type === 'b' ? ['#6dff9d', '#ffffff'] : ['#ff4fd8', '#b04dff', '#fff'], speed: 260 });
+  P.text(e.x, e.y, '+' + TYPES[e.type].score, { size: 16, color: '#fff' });
+  const chance = e.type === 'c' ? .9 : .09;
+  if (S.rnd() < chance) {
+    const r = S.rnd(); const kind = r < .5 ? 'pw' : r < .75 ? 'ps' : 'ph';
+    S.items.push({ x: e.x, y: e.y, kind, t: 0 });
+  }
+}
+
+function update(dt) {
+  S.t += dt; S.scroll += dt * 60; S.shake = Math.max(0, S.shake - dt);
+  const s = S.ship, k = G.keys;
+  // movimiento
+  let mx = (k.ArrowRight || k.KeyD ? 1 : 0) - (k.ArrowLeft || k.KeyA ? 1 : 0);
+  let my = (k.ArrowDown || k.KeyS ? 1 : 0) - (k.ArrowUp || k.KeyW ? 1 : 0);
+  if (mx || my) { s.x += mx * 420 * dt; s.y += my * 420 * dt; S.target = null; }
+  else if (S.target) { s.x += (S.target.x - s.x) * Math.min(1, dt * 12); s.y += (S.target.y - s.y) * Math.min(1, dt * 12); }
+  s.x = Engine.clamp(s.x, 28, W - 28); s.y = Engine.clamp(s.y, 120, H - 40);
+  s.inv = Math.max(0, s.inv - dt);
+  // disparo automático
+  s.fire -= dt;
+  if (s.fire <= 0) {
+    s.fire = .13;
+    const b = (dx, ang = 0) => S.shots.push({ x: s.x + dx, y: s.y - 26, vx: Math.sin(ang) * 760, vy: -Math.cos(ang) * 760 });
+    if (s.weapon === 1) b(0);
+    else if (s.weapon === 2) { b(-9); b(9); }
+    else { b(0); b(-12, -.16); b(12, .16); if (s.weapon >= 4) { b(-18, -.32); b(18, .32); } }
+    G.sfx('shoot');
+  }
+  // oleadas
+  if (S.enemies.length === 0 && !S.boss) {
+    S.delay -= dt;
+    if (S.delay <= 0) {
+      if (S.wave + 1 < S.waves.length) { S.wave++; spawnWave(S.waves[S.wave]); S.delay = 1.4; hud(); }
+      else if (!S.bossDone) { S.bossDone = true; spawnBoss(); }
+      else if (!S.ending) {
+        S.ending = true;
+        setTimeout(() => {
+          const stars = s.hp >= 4 ? 3 : s.hp >= 2 ? 2 : 1;
+          S.score += s.hp * 500;
+          G.win(stars, [['Casco restante', `${s.hp}/5`], ['Derribos', S.kills], ['Puntos', S.score]], S.score);
+        }, 900);
+      }
+    }
+  }
+  // enemigos
+  const k2 = speedK();
+  for (const e of S.enemies) {
+    e.t += dt; e.flash = Math.max(0, e.flash - dt);
+    if (e.beh === 'hover') {
+      if (e.y < e.ty) e.y += 200 * dt; else { e.x = e.bx + Math.sin(e.t * 1.6) * 40; e.y += Math.sin(e.t) * 10 * dt; }
+      e.fire -= dt;
+      if (e.fire <= 0 && e.y > 0) { e.fire = 2.6 / k2 + S.rnd() * 2; enemyShot(e.x, e.y + 14, aim(e.x, e.y), 230 * k2); }
+    } else if (e.beh === 'sine') {
+      e.y += e.vy * dt; e.x = e.bx + Math.sin(e.t * 2.2) * e.amp * (e.bx > W / 2 ? -1 : 1);
+      e.fire -= dt;
+      if (e.fire <= 0 && e.y > 40 && S.n > 2) { e.fire = 3 + S.rnd() * 2; enemyShot(e.x, e.y, Math.PI / 2, 220 * k2); }
+    } else if (e.beh === 'dive') {
+      e.y += e.vy * dt; if (e.y > 0) e.x += Math.sign(s.x - e.x) * Math.min(Math.abs(s.x - e.x), 90 * dt);
+    } else if (e.beh === 'heavy') {
+      if (e.y < e.ty) e.y += 90 * dt; else e.x = e.bx + Math.sin(e.t * .8) * 80;
+      e.fire -= dt;
+      if (e.fire <= 0 && e.y > 20) { e.fire = 2.2 / k2; const a0 = aim(e.x, e.y); for (let i = -2; i <= 2; i++) enemyShot(e.x, e.y + 20, a0 + i * .18, 210 * k2, '#ff4fd8'); }
+    }
+    if (Math.hypot(e.x - s.x, e.y - s.y) < e.r + 16) { e.hp = 0; e.dead = true; killEnemy(e); damageShip(); }
+  }
+  S.enemies = S.enemies.filter(e => !e.dead && e.y < H + 60);
+  // jefe
+  const B = S.boss;
+  if (B) {
+    B.t += dt; B.flash = Math.max(0, B.flash - dt);
+    if (B.y < 150) B.y += 70 * dt;
+    else {
+      B.x = W / 2 + Math.sin(B.t * .7) * (W / 2 - 120);
+      B.fire -= dt;
+      if (B.fire <= 0) {
+        B.phase = (B.phase + 1) % 3;
+        const rage = B.hp < B.max / 2 ? 1.35 : 1;
+        if (B.phase === 0) { for (let i = 0; i < 14; i++) enemyShot(B.x, B.y + 10, i / 14 * Math.PI * 2 + B.t, 190 * rage, '#ffb347'); B.fire = 1.6 / rage; }
+        else if (B.phase === 1) { for (let i = 0; i < 5; i++) setTimeout(() => S.boss && enemyShot(S.boss.x, S.boss.y + 40, aim(S.boss.x, S.boss.y), 330 * rage), i * 110); B.fire = 1.4 / rage; }
+        else { for (const dx of [-70, 70]) for (let i = -1; i <= 1; i++) enemyShot(B.x + dx, B.y + 50, Math.PI / 2 + i * .25, 240 * rage, '#ff4f6d'); B.fire = 1.2 / rage; }
+        if (B.big && S.rnd() < .35) S.enemies.push({ type: 'b', x: B.x, y: B.y + 40, hp: 1, r: 18, beh: 'dive', t: 0, fire: 9, flash: 0, vy: 200 });
+      }
+    }
+  }
+  // disparos del jugador
+  for (const b of S.shots) {
+    b.x += b.vx * dt; b.y += b.vy * dt;
+    for (const e of S.enemies) if (!e.dead && Math.abs(b.x - e.x) < e.r && Math.abs(b.y - e.y) < e.r) {
+      b.dead = true; e.hp--; e.flash = .08;
+      if (e.hp <= 0) { e.dead = true; killEnemy(e); } break;
+    }
+    if (!b.dead && B && B.y > 60 && Math.abs(b.x - B.x) < 95 && Math.abs(b.y - B.y) < 60) {
+      b.dead = true; B.hp--; B.flash = .06; S.score += 10;
+      P.burst(b.x, b.y, 3, { color: '#ffb347', speed: 120, life: .3, size: 2 });
+      if (B.hp <= 0) {
+        S.score += B.big ? 8000 : 4000; S.shake = .8; hud();
+        for (let i = 0; i < 6; i++) setTimeout(() => { G.sfx('explode'); P.burst(B.x + (Math.random() - .5) * 160, B.y + (Math.random() - .5) * 100, 40, { color: ['#ffb347', '#ff4f6d', '#fff'], speed: 380 }); }, i * 140);
+        S.boss = null; S.foes = []; S.delay = 1.5;
+      }
+    }
+  }
+  S.shots = S.shots.filter(b => !b.dead && b.y > -20 && b.x > -20 && b.x < W + 20);
+  for (const f of S.foes) {
+    f.x += f.vx * dt; f.y += f.vy * dt;
+    if (Math.hypot(f.x - s.x, f.y - s.y) < 14) { f.dead = true; damageShip(); }
+  }
+  S.foes = S.foes.filter(f => !f.dead && f.y < H + 20 && f.y > -40 && f.x > -20 && f.x < W + 20);
+  for (const it of S.items) {
+    it.t += dt; it.y += 110 * dt;
+    if (Math.hypot(it.x - s.x, it.y - s.y) < 30) {
+      it.dead = true; G.sfx('power');
+      if (it.kind === 'pw') { s.weapon = Math.min(4, s.weapon + 1); P.text(s.x, s.y - 40, '¡ARMAS +1!', { color: '#ff9f1c' }); }
+      else if (it.kind === 'ps') { s.shield = 1; P.text(s.x, s.y - 40, '¡ESCUDO!', { color: '#36c5ff' }); }
+      else { s.hp = Math.min(5, s.hp + 1); P.text(s.x, s.y - 40, '¡REPARADO!', { color: '#3dff9a' }); hud(); }
+    }
+  }
+  S.items = S.items.filter(i => !i.dead && i.y < H + 30);
+  P.update(dt);
+}
+
+function render() {
+  const ctx = G.ctx, a = G.assets; if (!ctx || !S) return;
+  ctx.save();
+  if (S.shake > 0) ctx.translate((Math.random() - .5) * 14 * S.shake, (Math.random() - .5) * 14 * S.shake);
+  const bh = W * a.bg.height / a.bg.width, off = S.scroll % bh;
+  ctx.drawImage(a.bg, 0, off - bh, W, bh + 1); ctx.drawImage(a.bg, 0, off, W, bh + 1);
+  // estrellas de velocidad
+  ctx.fillStyle = 'rgba(255,255,255,.5)';
+  for (let i = 0; i < 40; i++) { const y = (i * 137 + S.scroll * (3 + i % 3)) % H; ctx.fillRect((i * 97) % W, y, 1.5, 6 + i % 3 * 4); }
+  ctx.globalCompositeOperation = 'lighter';
+  for (const b of S.shots) { ctx.fillStyle = '#7ff7ff'; ctx.fillRect(b.x - 2, b.y - 10, 4, 18); ctx.fillStyle = 'rgba(51,225,255,.35)'; ctx.fillRect(b.x - 5, b.y - 12, 10, 22); }
+  ctx.globalCompositeOperation = 'source-over';
+  for (const it of S.items) { const s = 34 + Math.sin(it.t * 6) * 4; ctx.drawImage(a[it.kind], it.x - s / 2, it.y - s / 2, s, s); }
+  for (const e of S.enemies) {
+    const img = a[TYPES[e.type].img], sz = e.type === 'c' ? 70 : 52;
+    ctx.save(); ctx.translate(e.x, e.y);
+    if (e.beh === 'dive') ctx.rotate(Math.sin(e.t * 8) * .15);
+    ctx.drawImage(img, -sz / 2, -sz / 2, sz, sz);
+    if (e.flash > 0) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .7; ctx.drawImage(img, -sz / 2, -sz / 2, sz, sz); }
+    ctx.restore();
+  }
+  const B = S.boss;
+  if (B) {
+    ctx.save(); ctx.translate(B.x, B.y);
+    ctx.drawImage(a.boss, -120, -88, 240, 175);
+    if (B.flash > 0) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .5; ctx.drawImage(a.boss, -120, -88, 240, 175); }
+    ctx.restore();
+    ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(40, 18, W - 80, 12);
+    const g = ctx.createLinearGradient(40, 0, W - 40, 0); g.addColorStop(0, '#ff4f6d'); g.addColorStop(1, '#ffb347');
+    ctx.fillStyle = g; ctx.fillRect(40, 18, (W - 80) * B.hp / B.max, 12);
+    ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.strokeRect(40, 18, W - 80, 12);
+  }
+  for (const f of S.foes) {
+    ctx.fillStyle = f.col; ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, 6.283); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * .45, 0, 6.283); ctx.fill();
+  }
+  const s = S.ship, t = performance.now() / 1000;
+  if (G.playing && !(s.inv > 0 && Math.floor(t * 18) % 2)) {
+    ctx.save(); ctx.translate(s.x, s.y);
+    ctx.globalCompositeOperation = 'lighter';
+    const fl = 10 + Math.random() * 8;
+    ctx.fillStyle = 'rgba(51,225,255,.7)';
+    for (const dx of [-7, 7]) { ctx.beginPath(); ctx.moveTo(dx - 4, 22); ctx.lineTo(dx, 22 + fl); ctx.lineTo(dx + 4, 22); ctx.fill(); }
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(a.ship, -32, -32, 64, 64);
+    if (s.shield) { ctx.strokeStyle = `rgba(54,197,255,${.5 + Math.sin(t * 8) * .2})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, 40, 0, 6.283); ctx.stroke(); }
+    ctx.restore();
+  }
+  P.draw(ctx);
+  ctx.restore();
+}
+</script>
+</body>
+</html>

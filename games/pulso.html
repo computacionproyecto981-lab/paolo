@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pulso Neón</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/style.css">
+</head>
+<body>
+<div id="app"></div>
+<script src="../shared/engine.js"></script>
+<script>
+'use strict';
+const W = 520, H = 780, LX = 40, LW = 110, HIT = 670;
+const A = '../assets/pulso/';
+const LCOL = ['#ff4f8b', '#ffb82e', '#3dff9a', '#36c5ff'];
+const KEYS = { KeyD: 0, KeyF: 1, KeyJ: 2, KeyK: 3, ArrowLeft: 0, ArrowDown: 1, ArrowUp: 2, ArrowRight: 3 };
+const SONGS = [
+  { name: 'Primer latido', prog: [[57, 'm'], [53, 'M'], [48, 'M'], [55, 'M']] },
+  { name: 'Luces de neón', prog: [[48, 'M'], [55, 'M'], [57, 'm'], [53, 'M']] },
+  { name: 'Ciudad nocturna', prog: [[50, 'm'], [46, 'M'], [53, 'M'], [48, 'M']] },
+  { name: 'Velocidad', prog: [[52, 'm'], [48, 'M'], [55, 'M'], [50, 'M']] },
+  { name: 'Eco digital', prog: [[57, 'm'], [55, 'M'], [53, 'M'], [52, 'M']] },
+  { name: 'Corazón sintético', prog: [[53, 'M'], [55, 'M'], [52, 'm'], [57, 'm']] },
+  { name: 'Tormenta láser', prog: [[50, 'm'], [53, 'M'], [48, 'M'], [55, 'M']] },
+  { name: 'Hiperespacio', prog: [[55, 'M'], [50, 'M'], [52, 'm'], [48, 'M']] },
+  { name: 'Frecuencia máxima', prog: [[52, 'm'], [55, 'M'], [50, 'M'], [57, 'm']] },
+  { name: 'Pulso final', prog: [[57, 'm'], [53, 'M'], [55, 'M'], [52, 'M']] }
+];
+const P = new Engine.Particles();
+let S = null;
+const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+
+const G = Engine.create({
+  id: 'pulso', title: 'Pulso Neón', genre: 'Ritmo musical', accent: '#ff4f8b',
+  tagline: 'Toca las notas al compás y crea la melodía tú mismo. Cada acierto suena; cada fallo, se nota.',
+  help: ['Pulsa <b>D F J K</b> (o las flechas) cuando la nota llegue a su círculo', 'En pantalla táctil, toca el carril', 'Cuanto más exacto, más puntos: <b>Perfecto · Genial · Bien</b>', 'Si la energía llega a cero pierdes · Precisión 90%+ = ★★★', 'Sube el volumen: ¡la música es parte del juego!'],
+  levels: SONGS.length, background: A + 'bg.webp',
+  assets: { n0: A + 'note0.webp', n1: A + 'note1.webp', n2: A + 'note2.webp', n3: A + 'note3.webp', rec: A + 'receptor.webp' },
+  onLevel: load,
+  onPause() { if (S) S.anchor = null; },
+  onReady(g) {
+    g.canvas(W, H); g.loop(update, render);
+    addEventListener('keydown', e => { if (e.repeat) return; const l = KEYS[e.code]; if (l != null) press(l); });
+    addEventListener('keyup', e => { const l = KEYS[e.code]; if (l != null && S) S.held[l] = false; });
+    g.cv.addEventListener('pointerdown', e => { const p = g.pos(e); const l = Math.floor((p.x - LX) / LW); if (l >= 0 && l < 4) { press(l); setTimeout(() => S && (S.held[l] = false), 120); } });
+  }
+});
+
+// Reloj de la canción: sigue al reloj de audio cuando está activo; si no, avanza con el tiempo de juego.
+function audioNow() { const c = G.Sound.ctx; return c && c.state === 'running' ? c.currentTime : null; }
+function tickClock(dt) {
+  const a = audioNow();
+  if (a != null) { if (S.anchor == null) S.anchor = a - S.now; S.now = a - S.anchor; }
+  else { S.anchor = null; S.now += dt; }
+}
+function load(n) {
+  G.Sound.init();
+  const rnd = Engine.rng(n * 4099 + 11);
+  const bpm = 96 + (n - 1) * 6, beat = 60 / bpm, beats = 64 + 16 * Math.floor((n - 1) / 3);
+  const notes = [];
+  let lane = 1;
+  const off = n >= 4 ? (n >= 7 ? .45 : .25) : 0;
+  const onP = .5 + n * .04, chord = n >= 7 ? .12 + (n - 7) * .05 : n >= 5 ? .06 : 0;
+  for (let b = 4; b < beats - 4; b += .5) {
+    const isOn = b % 1 === 0, bar = Math.floor(b / 4);
+    let p = isOn ? (b % 2 === 0 ? onP + .15 : onP) : off;
+    if (bar % 4 === 3 && b % 4 >= 2) p *= .4;
+    if (rnd() >= p) continue;
+    const step = [-2, -1, -1, 1, 1, 2][(rnd() * 6) | 0];
+    lane = (lane + step + 4) % 4;
+    notes.push({ t: b * beat, lane, bar });
+    if (chord && isOn && rnd() < chord) notes.push({ t: b * beat, lane: (lane + 2) % 4, bar });
+  }
+  S = { n, song: SONGS[n - 1], bpm, beat, beats, notes, now: -1.2, anchor: null, nextStep: 0, speed: 430 + n * 22, score: 0, combo: 0, maxCombo: 0,
+    hp: 100, counts: { perfect: 0, great: 0, good: 0, miss: 0 }, judge: null, held: [false, false, false, false], flash: [0, 0, 0, 0], beatFlash: 0, ended: false };
+  P.clear(); hud();
+  G.toast(`♪ ${S.song.name} · ${bpm} BPM`);
+}
+function hud() {
+  const total = S.counts.perfect + S.counts.great + S.counts.good + S.counts.miss;
+  const acc = total ? (S.counts.perfect + S.counts.great * .7 + S.counts.good * .4) / total : 1;
+  G.hud({ Canción: `${S.n}/${SONGS.length}`, Combo: S.combo, Precisión: Math.round(acc * 100) + '%', Puntos: S.score });
+}
+function chordAt(bar) {
+  const [root, q] = S.song.prog[bar % 4];
+  return [root, root + (q === 'm' ? 3 : 4), root + 7];
+}
+function schedule() {
+  const a = audioNow();
+  while (S.nextStep * S.beat / 2 < S.now + .2 && S.nextStep < S.beats * 2 + 2) {
+    const st = S.nextStep, b = st / 2, bar = Math.floor(b / 4);
+    if (a == null) { S.nextStep++; continue; }
+    const at = Math.max(a, a + st * S.beat / 2 - S.now);
+    const snd = G.Sound;
+    if (b < S.beats) {
+      if (b < 4) { if (st % 2 === 0) snd.tone(b === 0 ? 1320 : 880, .06, { at, type: 'square', vol: .06 }); }
+      else {
+        const ch = chordAt(bar);
+        if (st % 2 === 0) { snd.tone(120, .18, { at, vol: .5, slide: .35 }); }
+        if (st % 4 === 2) snd.noise(.14, { at, vol: .22, freq: 1800, q: .6 });
+        snd.noise(.04, { at, vol: st % 2 ? .07 : .04, freq: 8000, filter: 'highpass' });
+        if (st % 4 === 0) snd.tone(mtof(ch[0] - 12), S.beat * .9, { at, type: 'sawtooth', vol: .07 });
+        if (st % 8 === 0) for (const m of ch) snd.tone(mtof(m), S.beat * 3.6, { at, type: 'triangle', vol: .035, attack: .2 });
+      }
+    }
+    S.nextStep++;
+  }
+}
+function judge(kind, lane) {
+  S.counts[kind]++;
+  const txt = { perfect: '¡PERFECTO!', great: 'GENIAL', good: 'BIEN', miss: 'FALLO' }[kind];
+  const col = { perfect: '#7ff7ff', great: '#3dff9a', good: '#ffd84d', miss: '#ff4f6d' }[kind];
+  S.judge = { txt, col, t: .5 };
+  if (kind === 'miss') { S.combo = 0; S.hp -= 9 + S.n * .4; G.Sound.tone(90, .12, { type: 'square', vol: .06 }); }
+  else {
+    S.combo++; S.maxCombo = Math.max(S.maxCombo, S.combo);
+    const base = { perfect: 300, great: 200, good: 100 }[kind];
+    S.score += Math.round(base * (1 + Math.min(1, Math.floor(S.combo / 10) * .1)));
+    S.hp = Math.min(100, S.hp + (kind === 'perfect' ? 3 : 1.5));
+    const x = LX + lane * LW + LW / 2;
+    P.burst(x, HIT, kind === 'perfect' ? 18 : 10, { color: [LCOL[lane], '#ffffff'], speed: 260, life: .45 });
+    if (S.combo % 25 === 0) G.toast(`¡Combo ${S.combo}!`, 900);
+  }
+  hud();
+  if (S.hp <= 0) { S.hp = 0; end(false); }
+}
+function press(l) {
+  if (!S || !G.playing || G.paused || S.ended) return;
+  S.held[l] = true; S.flash[l] = .15;
+  const st = S.now;
+  let best = null, bd = 1;
+  for (const n of S.notes) if (!n.done && n.lane === l) { const d = Math.abs(n.t - st); if (d < bd) { bd = d; best = n; } if (n.t - st > .2) break; }
+  if (!best || bd > .15) return;
+  best.done = true;
+  const ch = chordAt(best.bar), mel = ch[l % 3] + 12 + (l === 3 ? 12 : 0);
+  G.Sound.tone(mtof(mel), .28, { type: 'triangle', vol: .16 }); G.Sound.tone(mtof(mel + 12), .12, { type: 'square', vol: .03 });
+  judge(bd < .05 ? 'perfect' : bd < .095 ? 'great' : 'good', l);
+}
+function end(ok) {
+  if (S.ended) return;
+  S.ended = true;
+  const total = S.notes.length, c = S.counts;
+  const acc = (c.perfect + c.great * .7 + c.good * .4) / total;
+  const stats = [['Precisión', Math.round(acc * 100) + '%'], ['Perfectos', c.perfect], ['Fallos', c.miss], ['Combo máx.', S.maxCombo], ['Puntos', S.score]];
+  if (!ok) { G.lose('Te quedaste sin energía', stats); return; }
+  const stars = acc >= .9 ? 3 : acc >= .75 ? 2 : 1;
+  G.win(stars, stats, S.score);
+}
+function update(dt) {
+  if (S.ended) { P.update(dt); return; }
+  tickClock(dt);
+  schedule();
+  const st = S.now;
+  for (const n of S.notes) { if (n.t - st > 0) break; if (!n.done && st - n.t > .15) { n.done = true; judge('miss', n.lane); if (S.ended) return; } }
+  for (let i = 0; i < 4; i++) S.flash[i] = Math.max(0, S.flash[i] - dt);
+  if (S.judge) S.judge.t -= dt;
+  if (st > S.beats * S.beat + .5) end(true);
+  P.update(dt);
+}
+function render() {
+  const ctx = G.ctx, a = G.assets; if (!ctx || !S) return;
+  ctx.clearRect(0, 0, W, H);
+  const st = S.now;
+  const pulse = st > 4 * S.beat ? Math.max(0, 1 - (st % S.beat) / .25) : 0;
+  // pista
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, 'rgba(8,4,16,.2)'); g.addColorStop(.6, 'rgba(8,4,16,.75)'); g.addColorStop(1, 'rgba(8,4,16,.9)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.roundRect(LX - 10, 0, LW * 4 + 20, H, 16); ctx.fill();
+  for (let i = 0; i < 4; i++) {
+    const x = LX + i * LW;
+    if (S.held[i] || S.flash[i] > 0) { const lg = ctx.createLinearGradient(0, HIT, 0, 0); lg.addColorStop(0, LCOL[i] + '55'); lg.addColorStop(1, LCOL[i] + '00'); ctx.fillStyle = lg; ctx.fillRect(x, 0, LW, HIT); }
+    ctx.strokeStyle = `rgba(255,255,255,${.08 + pulse * .12})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+  }
+  ctx.beginPath(); ctx.moveTo(LX + 4 * LW, 0); ctx.lineTo(LX + 4 * LW, H); ctx.stroke();
+  // líneas de compás
+  ctx.strokeStyle = 'rgba(255,255,255,.08)';
+  for (let b = Math.ceil(st / S.beat); b < st / S.beat + 8; b++) { if (b % 4) continue; const y = HIT - (b * S.beat - st) * S.speed; ctx.beginPath(); ctx.moveTo(LX, y); ctx.lineTo(LX + 4 * LW, y); ctx.stroke(); }
+  ctx.fillStyle = `rgba(255,255,255,${.25 + pulse * .4})`; ctx.fillRect(LX, HIT - 1, LW * 4, 2);
+  for (let i = 0; i < 4; i++) {
+    const x = LX + i * LW + LW / 2, s = 84 * (S.held[i] ? .92 : 1) * (1 + pulse * .04);
+    ctx.drawImage(a.rec, x - s / 2, HIT - s / 2, s, s);
+    if (S.flash[i] > 0) { ctx.globalAlpha = S.flash[i] / .15 * .6; ctx.drawImage(a['n' + i], x - s / 2, HIT - s / 2, s, s); ctx.globalAlpha = 1; }
+    ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.font = '700 15px Outfit, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('DFJK'[i], x, HIT + 64);
+  }
+  for (const n of S.notes) {
+    if (n.done) continue;
+    const y = HIT - (n.t - st) * S.speed; if (y < -60) break; if (y > H + 60) continue;
+    const x = LX + n.lane * LW + LW / 2;
+    ctx.drawImage(a['n' + n.lane], x - 38, y - 38, 76, 76);
+  }
+  P.draw(ctx);
+  // energía
+  ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(12, 80, 10, 500);
+  const hc = S.hp > 50 ? '#3dff9a' : S.hp > 25 ? '#ffd84d' : '#ff4f6d';
+  ctx.fillStyle = hc; ctx.fillRect(12, 80 + 500 * (1 - S.hp / 100), 10, 500 * S.hp / 100);
+  // progreso
+  const prog = Engine.clamp(st / (S.beats * S.beat), 0, 1);
+  ctx.fillStyle = 'rgba(255,255,255,.15)'; ctx.fillRect(LX, 14, LW * 4, 5); ctx.fillStyle = '#ff4f8b'; ctx.fillRect(LX, 14, LW * 4 * prog, 5);
+  if (st < 4 * S.beat && st > -1) {
+    const c = Math.max(1, 4 - Math.floor(st / S.beat));
+    ctx.fillStyle = '#fff'; ctx.font = '800 90px Outfit, sans-serif'; ctx.textAlign = 'center'; ctx.globalAlpha = st < 0 ? .4 : 1;
+    ctx.fillText(st < 0 ? '♪' : c, W / 2, 330); ctx.globalAlpha = 1;
+  }
+  if (S.combo >= 5) { ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.font = '800 56px Outfit, sans-serif'; ctx.textAlign = 'center'; ctx.fillText(S.combo, W / 2, 250); ctx.font = '700 16px Outfit, sans-serif'; ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.fillText('COMBO', W / 2, 275); }
+  if (S.judge && S.judge.t > 0) {
+    ctx.save(); ctx.globalAlpha = Math.min(1, S.judge.t * 3); ctx.translate(W / 2, 400); const sc = 1 + (S.judge.t - .4) * 1.2; ctx.scale(Math.max(1, sc), Math.max(1, sc));
+    ctx.fillStyle = S.judge.col; ctx.font = '800 36px Outfit, sans-serif'; ctx.textAlign = 'center'; ctx.shadowColor = S.judge.col; ctx.shadowBlur = 20; ctx.fillText(S.judge.txt, 0, 0); ctx.restore();
+  }
+}
+</script>
+</body>
+</html>

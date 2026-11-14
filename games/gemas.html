@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gemas Arcanas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/style.css">
+</head>
+<body>
+<div id="app"></div>
+<script src="../shared/engine.js"></script>
+<script>
+'use strict';
+const N = 8, CELL = 72, OX = 32, OY = 92, W = OX * 2 + N * CELL, H = OY + N * CELL + 32;
+const A = '../assets/gemas/';
+const LV = [
+  { target: 2500, moves: 20, types: 5 }, { target: 3000, moves: 20, types: 5 }, { target: 3600, moves: 22, types: 5 },
+  { target: 2200, moves: 22, types: 6 }, { target: 2500, moves: 24, types: 6 }, { target: 2700, moves: 24, types: 6 },
+  { target: 2900, moves: 25, types: 6 }, { target: 2900, moves: 22, types: 6 }, { target: 2800, moves: 20, types: 6 }, { target: 2800, moves: 18, types: 6 }
+];
+const COLORS = ['#ff2d55', '#2e8bff', '#22d67a', '#ffc21a', '#b04dff', '#ff8a1f'];
+const P = new Engine.Particles();
+let S = null, uid = 0;
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+const G = Engine.create({
+  id: 'gemas', title: 'Gemas Arcanas', genre: 'Combina tres', accent: '#2ee6ff',
+  tagline: 'Intercambia gemas mágicas, crea combinaciones y desata reacciones en cadena.',
+  help: ['<b>Haz clic</b> en una gema y luego en una vecina, o <b>arrástrala</b>', 'Alinea 3 o más iguales para destruirlas', '4 en línea crea una <b>gema rayo</b> · 5 o en forma de L/T crea una <b>bomba</b>', 'Alcanza la puntuación objetivo antes de quedarte sin movimientos'],
+  levels: LV.length, background: A + 'bg.webp',
+  assets: Object.fromEntries([0, 1, 2, 3, 4, 5].map(i => ['g' + i, A + `gem${i}.webp`])),
+  onLevel: load,
+  onReady(g) {
+    g.canvas(W, H); g.loop(update, render);
+    g.cv.addEventListener('pointerdown', down);
+    g.cv.addEventListener('pointermove', drag);
+    addEventListener('pointerup', () => { if (S) S.drag = null; });
+  }
+});
+
+function gem(t, sp = null) { return { t, sp, id: ++uid, dx: 0, dy: 0, s: 1, dying: false }; }
+function load(n) {
+  const cfg = LV[n - 1];
+  S = { cfg, b: [], score: 0, moves: cfg.moves, busy: false, sel: null, drag: null, idle: 0, hint: null, t: 0, shown: 0, combo: 0, best: 0 };
+  do {
+    S.b = [];
+    for (let y = 0; y < N; y++) { const row = []; for (let x = 0; x < N; x++) {
+      let t; do { t = (Math.random() * cfg.types) | 0; } while ((x >= 2 && row[x - 1].t === t && row[x - 2].t === t) || (y >= 2 && S.b[y - 1][x].t === t && S.b[y - 2][x].t === t));
+      const g = gem(t); g.dx = x; g.dy = y - N - 2 - (N - y) * .3; row.push(g);
+    } S.b.push(row); }
+  } while (!hasMoves());
+  P.clear(); hud();
+}
+function hud() { G.hud({ Nivel: `${G.level}/${LV.length}`, Puntos: S.score, Objetivo: S.cfg.target, Movimientos: S.moves }); }
+const at = (x, y) => (x >= 0 && y >= 0 && x < N && y < N) ? S.b[y][x] : null;
+
+function findRuns(b = S.b) {
+  const runs = [];
+  for (let y = 0; y < N; y++) { let s = 0; for (let x = 1; x <= N; x++) { if (x < N && b[y][x] && b[y][s] && b[y][x].t === b[y][s].t) continue; if (x - s >= 3 && b[y][s]) runs.push({ dir: 'h', cells: Array.from({ length: x - s }, (_, i) => [s + i, y]) }); s = x; } }
+  for (let x = 0; x < N; x++) { let s = 0; for (let y = 1; y <= N; y++) { if (y < N && b[y][x] && b[s][x] && b[y][x].t === b[s][x].t) continue; if (y - s >= 3 && b[s][x]) runs.push({ dir: 'v', cells: Array.from({ length: y - s }, (_, i) => [x, s + i]) }); s = y; } }
+  return runs;
+}
+function hasMoves() {
+  const b = S.b;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) for (const [dx, dy] of [[1, 0], [0, 1]]) {
+    const nx = x + dx, ny = y + dy; if (nx >= N || ny >= N) continue;
+    [b[y][x], b[ny][nx]] = [b[ny][nx], b[y][x]];
+    const ok = findRuns().length > 0;
+    [b[y][x], b[ny][nx]] = [b[ny][nx], b[y][x]];
+    if (ok) return [[x, y], [nx, ny]];
+  }
+  return null;
+}
+function cellAt(e) { const p = G.pos(e); const x = Math.floor((p.x - OX) / CELL), y = Math.floor((p.y - OY) / CELL); return (x >= 0 && y >= 0 && x < N && y < N) ? [x, y] : null; }
+function down(e) {
+  if (!S || S.busy || !G.playing || G.paused) return;
+  const c = cellAt(e); if (!c) return;
+  S.idle = 0; S.hint = null;
+  if (S.sel && Math.abs(S.sel[0] - c[0]) + Math.abs(S.sel[1] - c[1]) === 1) { const a = S.sel; S.sel = null; trySwap(a, c); return; }
+  S.sel = c; S.drag = { c, p: G.pos(e) }; G.sfx('click');
+}
+function drag(e) {
+  if (!S || !S.drag || S.busy) return;
+  const p = G.pos(e), dx = p.x - S.drag.p.x, dy = p.y - S.drag.p.y;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < 26) return;
+  const [x, y] = S.drag.c; S.drag = null;
+  const t = Math.abs(dx) > Math.abs(dy) ? [x + Math.sign(dx), y] : [x, y + Math.sign(dy)];
+  if (at(...t)) { S.sel = null; trySwap([x, y], t); }
+}
+function swap(a, b) { const t = S.b[a[1]][a[0]]; S.b[a[1]][a[0]] = S.b[b[1]][b[0]]; S.b[b[1]][b[0]] = t; }
+
+async function trySwap(a, b) {
+  const my = S;
+  S.busy = true; swap(a, b); G.sfx('swap'); await wait(180);
+  if (S !== my) return;
+  if (!findRuns().length) { swap(a, b); G.sfx('error'); await wait(180); S.busy = false; return; }
+  S.moves--; hud();
+  await resolve([a, b]);
+  if (S !== my) return;
+  if (!hasMoves()) { G.toast('Sin jugadas: mezclando gemas'); await wait(500); if (S !== my) return; shuffle(); }
+  S.busy = false;
+  if (S.moves <= 0) end();
+}
+function shuffle() {
+  const all = S.b.flat();
+  do { for (let i = all.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [all[i], all[j]] = [all[j], all[i]]; }
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) S.b[y][x] = all[y * N + x];
+  } while (findRuns().length || !hasMoves());
+}
+function end() {
+  const t = S.cfg.target;
+  if (S.score >= t) {
+    const stars = S.score >= t * 1.6 ? 3 : S.score >= t * 1.3 ? 2 : 1;
+    G.win(stars, [['Puntos', S.score], ['Objetivo', t], ['Mejor combo', 'x' + S.best]], S.score);
+  } else G.lose('Sin movimientos', [['Puntos', S.score], ['Objetivo', t]]);
+}
+
+async function resolve(focus) {
+  let combo = 0; const my = S;
+  for (;;) {
+    if (S !== my) return;
+    const runs = findRuns(); if (!runs.length) break;
+    combo++; S.best = Math.max(S.best, combo);
+    const clear = new Map(), create = [];
+    const count = new Map();
+    for (const r of runs) for (const [x, y] of r.cells) { const k = x + ',' + y; clear.set(k, [x, y]); count.set(k, (count.get(k) || 0) + 1); }
+    for (const r of runs) {
+      const L = r.cells.length;
+      const cross = r.cells.find(([x, y]) => count.get(x + ',' + y) > 1);
+      if (L < 4 && !cross) continue;
+      let pick = r.cells.find(([x, y]) => focus && focus.some(f => f[0] === x && f[1] === y)) || cross || r.cells[L >> 1];
+      const kind = (L >= 5 || cross) ? 'bomb' : r.dir;
+      if (!create.some(c => c.x === pick[0] && c.y === pick[1])) create.push({ x: pick[0], y: pick[1], t: at(...pick).t, sp: kind });
+    }
+    // reacción en cadena de especiales
+    const queue = [...clear.values()];
+    while (queue.length) {
+      const [x, y] = queue.pop(); const g = at(x, y); if (!g || !g.sp || g.fired) continue;
+      g.fired = true; const add = [];
+      if (g.sp === 'h') for (let i = 0; i < N; i++) add.push([i, y]);
+      if (g.sp === 'v') for (let i = 0; i < N; i++) add.push([x, i]);
+      if (g.sp === 'bomb') for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) add.push([x + i, y + j]);
+      G.sfx('explode'); S.flash = { x, y, sp: g.sp, t: .35 };
+      for (const c of add) if (at(...c) && !clear.has(c.join(','))) { clear.set(c.join(','), c); queue.push(c); }
+    }
+    for (const c of create) clear.delete(c.x + ',' + c.y);
+    const pts = clear.size * 20 * combo + create.length * 50;
+    S.score += pts; hud();
+    let cx = 0, cy = 0;
+    for (const [x, y] of clear.values()) {
+      const g = at(x, y); if (!g) continue; g.dying = true; cx += x; cy += y;
+      P.burst(OX + x * CELL + CELL / 2, OY + y * CELL + CELL / 2, 7, { color: [COLORS[g.t], '#ffffff'], speed: 220, life: .5, size: 4 });
+    }
+    if (clear.size) P.text(OX + (cx / clear.size) * CELL + CELL / 2, OY + (cy / clear.size) * CELL + CELL / 2, '+' + pts, { size: 22 + combo * 3, color: combo > 1 ? '#ffd84d' : '#ffffff' });
+    if (combo > 1) G.toast(`¡Combo x${combo}!`, 900);
+    G.Sound.tone(500 + combo * 90, .14, { type: 'triangle', vol: .14 }); G.Sound.tone(750 + combo * 120, .12, { type: 'sine', vol: .1, delay: .05 });
+    for (const c of create) { const g = at(c.x, c.y); g.sp = c.sp; g.fired = false; g.s = 1.5; G.sfx('power'); }
+    await wait(230);
+    if (S !== my) return;
+    for (const [x, y] of clear.values()) S.b[y][x] = null;
+    for (let x = 0; x < N; x++) {
+      let w = N - 1;
+      for (let y = N - 1; y >= 0; y--) if (S.b[y][x]) { const g = S.b[y][x]; S.b[y][x] = null; S.b[w][x] = g; w--; }
+      let k = 0;
+      for (let y = w; y >= 0; y--) { const g = gem((Math.random() * S.cfg.types) | 0); g.dx = x; g.dy = -1 - k; k++; S.b[y][x] = g; }
+    }
+    focus = null;
+    await wait(300);
+  }
+}
+
+function update(dt) {
+  S.t += dt;
+  const k = 1 - Math.exp(-dt * 16);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const g = S.b[y][x]; if (!g) continue;
+    g.dx += (x - g.dx) * k; g.dy += (y - g.dy) * Math.min(1, k * 1.1);
+    if (g.dying) g.s = Math.max(0, g.s - dt * 6); else g.s += (1 - g.s) * k;
+  }
+  if (S.flash) S.flash.t -= dt;
+  S.shown += (S.score - S.shown) * Math.min(1, dt * 8);
+  if (!S.busy) { S.idle += dt; if (S.idle > 6 && !S.hint) S.hint = hasMoves(); }
+  P.update(dt);
+}
+
+function render() {
+  const ctx = G.ctx, a = G.assets; if (!ctx || !S) return;
+  const t = performance.now() / 1000;
+  ctx.clearRect(0, 0, W, H);
+  // barra de progreso
+  const bx = OX, by = 30, bw = N * CELL, max = S.cfg.target * 1.6;
+  ctx.fillStyle = 'rgba(10,16,32,.75)'; round(ctx, bx, by, bw, 22, 11); ctx.fill();
+  const f = Math.min(1, S.shown / max);
+  const g = ctx.createLinearGradient(bx, 0, bx + bw, 0); g.addColorStop(0, '#2ee6ff'); g.addColorStop(1, '#b04dff');
+  ctx.fillStyle = g; round(ctx, bx, by, Math.max(22, bw * f), 22, 11); ctx.fill();
+  for (const [m, i] of [[1, 1], [1.3, 2], [1.6, 3]]) {
+    const x = bx + bw * (S.cfg.target * m / max) - (i === 3 ? 14 : 0);
+    ctx.font = '800 22px Outfit, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillStyle = S.score >= S.cfg.target * m ? '#ffc83d' : 'rgba(255,255,255,.3)'; ctx.fillText('★', x, by + 19);
+  }
+  ctx.fillStyle = '#fff'; ctx.font = '700 15px Outfit, sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText(`${Math.round(S.shown)} / ${S.cfg.target}`, bx + 10, by + 16);
+  // tablero
+  ctx.fillStyle = 'rgba(8,14,30,.72)'; round(ctx, OX - 10, OY - 10, N * CELL + 20, N * CELL + 20, 18); ctx.fill();
+  ctx.strokeStyle = 'rgba(127,247,255,.25)'; ctx.lineWidth = 2; ctx.stroke();
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if ((x + y) % 2) { ctx.fillStyle = 'rgba(255,255,255,.04)'; ctx.fillRect(OX + x * CELL, OY + y * CELL, CELL, CELL); }
+  if (S.sel) { const [x, y] = S.sel; ctx.fillStyle = 'rgba(46,230,255,.18)'; round(ctx, OX + x * CELL + 3, OY + y * CELL + 3, CELL - 6, CELL - 6, 12); ctx.fill(); ctx.strokeStyle = '#7ff7ff'; ctx.lineWidth = 2.5; ctx.stroke(); }
+  ctx.save(); ctx.beginPath(); ctx.rect(OX - 10, OY - 10, N * CELL + 20, N * CELL + 20); ctx.clip();
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const gm = S.b[y][x]; if (!gm) continue;
+    let px = OX + gm.dx * CELL + CELL / 2, py = OY + gm.dy * CELL + CELL / 2;
+    if (S.hint && S.hint.some(h => h[0] === x && h[1] === y)) px += Math.sin(t * 14) * 3;
+    const sel = S.sel && S.sel[0] === x && S.sel[1] === y;
+    const sz = 64 * gm.s * (sel ? 1 + Math.sin(t * 8) * .05 : 1);
+    if (gm.sp === 'bomb') { ctx.fillStyle = `rgba(255,255,255,${.18 + Math.sin(t * 6) * .1})`; ctx.beginPath(); ctx.arc(px, py, 34 * gm.s, 0, 6.283); ctx.fill(); }
+    ctx.drawImage(a['g' + gm.t], px - sz / 2, py - sz / 2, sz, sz);
+    if (gm.sp === 'h' || gm.sp === 'v') {
+      ctx.save(); ctx.translate(px, py); if (gm.sp === 'v') ctx.rotate(Math.PI / 2);
+      ctx.fillStyle = 'rgba(255,255,255,.85)';
+      for (const o of [-8, 0, 8]) ctx.fillRect(-24 * gm.s, o - 1.5, 48 * gm.s, 3);
+      ctx.restore();
+    }
+    if (gm.sp === 'bomb') { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(px, py, 30 * gm.s, t * 4, t * 4 + 4.5); ctx.stroke(); }
+  }
+  ctx.restore();
+  if (S.flash && S.flash.t > 0) {
+    const { x, y, sp } = S.flash, al = S.flash.t / .35;
+    ctx.fillStyle = `rgba(255,255,255,${al * .6})`;
+    if (sp === 'h') ctx.fillRect(OX, OY + y * CELL + 18, N * CELL, CELL - 36);
+    else if (sp === 'v') ctx.fillRect(OX + x * CELL + 18, OY, CELL - 36, N * CELL);
+    else { ctx.beginPath(); ctx.arc(OX + x * CELL + CELL / 2, OY + y * CELL + CELL / 2, CELL * 1.6 * (1.2 - al * .5), 0, 6.283); ctx.fill(); }
+  }
+  P.draw(ctx);
+}
+function round(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
+</script>
+</body>
+</html>

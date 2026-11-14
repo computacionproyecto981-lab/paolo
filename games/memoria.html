@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Memoria Mística</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/style.css">
+<style>
+.board{display:grid;gap:12px;perspective:1200px}
+.card{position:relative;cursor:pointer;transition:transform .2s}
+.card:hover{transform:translateY(-4px)}
+.inner{position:absolute;inset:0;transition:transform .5s cubic-bezier(.3,1.4,.5,1);transform-style:preserve-3d}
+.card.up .inner{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;border-radius:14px;backface-visibility:hidden;-webkit-backface-visibility:hidden;box-shadow:0 10px 24px rgba(0,0,0,.45)}
+.cback{background:url(../assets/memoria/back.webp) center/cover}
+.front{transform:rotateY(180deg);background:linear-gradient(160deg,#fffaf0,#efe2c4);border:3px solid #e6c36a;display:grid;place-items:center}
+.front img{width:78%;height:78%;object-fit:contain;filter:drop-shadow(0 4px 6px rgba(0,0,0,.2))}
+.card.ok .front{border-color:#3dff9a;box-shadow:0 0 0 3px rgba(61,255,154,.35),0 0 30px rgba(61,255,154,.5)}
+.card.ok{animation:yay .5s ease}
+.card.bad .front{border-color:#ff4f6d}
+.card.bad{animation:shake .4s ease}
+@keyframes yay{50%{transform:scale(1.08)}}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.timer{width:min(720px,92vw);height:10px;border-radius:6px;background:rgba(255,255,255,.1);overflow:hidden}
+.timer i{display:block;height:100%;background:linear-gradient(90deg,#ffb347,#ff3df0);transition:width .25s linear}
+.timer.low i{background:linear-gradient(90deg,#ff4f6d,#ff9f1c)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="../shared/engine.js"></script>
+<script>
+'use strict';
+const A = '../assets/memoria/';
+const ICONS = ['sun', 'moon', 'star', 'heart', 'leaf', 'drop', 'flame', 'bolt', 'crown', 'gem', 'key', 'mushroom'];
+const LV = [
+  { pairs: 3, time: 40, peek: 2 }, { pairs: 4, time: 45, peek: 2 }, { pairs: 6, time: 60, peek: 1.6 }, { pairs: 6, time: 50, peek: 1.2 },
+  { pairs: 8, time: 75, peek: 1.2 }, { pairs: 8, time: 62, peek: 0 }, { pairs: 10, time: 90, peek: 0 }, { pairs: 10, time: 78, peek: 0 },
+  { pairs: 12, time: 105, peek: 0 }, { pairs: 12, time: 90, peek: 0 }
+];
+let S = null, board, timer;
+
+const G = Engine.create({
+  id: 'memoria', title: 'Memoria Mística', genre: 'Memoria', accent: '#e6c36a',
+  tagline: 'Descubre las parejas de cartas encantadas antes de que se consuma la vela del tiempo.',
+  help: ['<b>Haz clic</b> en dos cartas para darles la vuelta', 'Si coinciden se quedan descubiertas', 'Encadena aciertos seguidos para ganar tiempo extra', 'Menos intentos = más estrellas'],
+  levels: LV.length, background: A + 'bg.webp',
+  assets: Object.fromEntries(ICONS.map(k => [k, A + k + '.webp'])),
+  onLevel: load,
+  onPause(p) { if (S) S.running = !p; },
+  onReady(g) {
+    timer = document.createElement('div'); timer.className = 'timer'; timer.innerHTML = '<i></i>';
+    board = document.createElement('div'); board.className = 'board';
+    g.stage.append(timer, board);
+    addEventListener('resize', layout);
+    g.loop(update, () => {});
+  }
+});
+
+function load(n) {
+  const cfg = LV[n - 1];
+  const icons = ICONS.slice().sort(() => Math.random() - .5).slice(0, cfg.pairs);
+  const deck = [...icons, ...icons].sort(() => Math.random() - .5);
+  S = { cfg, deck, open: [], found: 0, tries: 0, time: cfg.time, streak: 0, lock: true, running: true, best: 0 };
+  board.innerHTML = '';
+  deck.forEach((k, i) => {
+    const c = document.createElement('div'); c.className = 'card';
+    c.innerHTML = `<div class="inner"><div class="face cback"></div><div class="face front"><img src="${A}${k}.webp" alt=""></div></div>`;
+    c.onclick = () => flip(i, c);
+    board.append(c);
+  });
+  layout();
+  hud();
+  timer.firstChild.style.width = '100%'; timer.classList.remove('low');
+  if (cfg.peek) {
+    const my = S; S.peeking = true;
+    setTimeout(() => { if (S === my) board.querySelectorAll('.card').forEach(c => c.classList.add('up')); }, 250);
+    setTimeout(() => { if (S !== my) return; board.querySelectorAll('.card').forEach(c => c.classList.remove('up')); S.lock = false; S.peeking = false; }, 450 + cfg.peek * 1000);
+  } else S.lock = false;
+}
+function layout() {
+  if (!S) return;
+  const n = S.deck.length;
+  const r = G.stage.getBoundingClientRect();
+  const aw = r.width - 40, ah = r.height - 70;
+  let best = null;
+  for (let cols = 2; cols <= n; cols++) {
+    const rows = Math.ceil(n / cols); if (cols * rows - n >= cols) continue;
+    const cw = Math.min((aw - (cols - 1) * 12) / cols, ((ah - (rows - 1) * 12) / rows) / 1.3);
+    if (!best || cw > best.cw) best = { cols, cw };
+  }
+  const cw = Math.min(150, best.cw);
+  board.style.gridTemplateColumns = `repeat(${best.cols}, ${cw}px)`;
+  board.querySelectorAll('.card').forEach(c => { c.style.width = cw + 'px'; c.style.height = cw * 1.3 + 'px'; });
+}
+function hud() { G.hud({ Nivel: `${G.level}/${LV.length}`, Parejas: `${S.found}/${S.cfg.pairs}`, Intentos: S.tries, Tiempo: Math.ceil(S.time) + ' s' }); }
+function flip(i, el) {
+  if (!S || S.lock || G.paused || !G.playing || el.classList.contains('up')) return;
+  el.classList.add('up'); G.sfx('swap');
+  S.open.push({ i, el });
+  if (S.open.length < 2) return;
+  S.tries++; S.lock = true;
+  const [a, b] = S.open, my = S;
+  if (S.deck[a.i] === S.deck[b.i]) {
+    setTimeout(() => {
+      if (S !== my) return;
+      a.el.classList.add('ok'); b.el.classList.add('ok');
+      S.found++; S.streak++; S.best = Math.max(S.best, S.streak);
+      G.sfx('coin');
+      if (S.streak >= 2) { const bonus = S.streak; S.time = Math.min(S.cfg.time, S.time + bonus); G.toast(`¡Racha x${S.streak}! +${bonus} s`, 900); }
+      S.open = []; S.lock = false; hud();
+      if (S.found === S.cfg.pairs) {
+        const p = S.cfg.pairs, eff = S.tries / p;
+        const stars = eff <= 1.5 ? 3 : eff <= 2.2 ? 2 : 1;
+        setTimeout(() => G.win(stars, [['Intentos', S.tries], ['Mínimo', p], ['Mejor racha', S.best], ['Tiempo restante', Math.ceil(S.time) + ' s']], Math.round(S.time * 10 + p * 100 - S.tries * 10)), 500);
+      }
+    }, 300);
+  } else {
+    S.streak = 0;
+    setTimeout(() => { a.el.classList.add('bad'); b.el.classList.add('bad'); G.sfx('error'); }, 450);
+    setTimeout(() => { if (S !== my) return; for (const o of [a, b]) o.el.classList.remove('up', 'bad'); S.open = []; S.lock = false; hud(); }, 1000);
+  }
+}
+function update(dt) {
+  if (!S || S.peeking || S.found === S.cfg.pairs) return;
+  S.time -= dt;
+  const f = Math.max(0, S.time / S.cfg.time);
+  timer.firstChild.style.width = (f * 100) + '%';
+  timer.classList.toggle('low', f < .25);
+  if (Math.ceil(S.time) !== Math.ceil(S.time + dt)) { hud(); if (S.time < 10 && S.time > 0) G.sfx('tick'); }
+  if (S.time <= 0) { S.time = 0; hud(); G.lose('¡Se acabó el tiempo!', [['Parejas', `${S.found}/${S.cfg.pairs}`], ['Intentos', S.tries]]); }
+}
+</script>
+</body>
+</html>
