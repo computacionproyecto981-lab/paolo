@@ -219,7 +219,7 @@
         h('p', { class: 'lead' }, cfg.tagline || ''),
         helpBlock(),
         h('div', { class: 'meta' }, `★ ${totalStars(cfg.id)} / ${cfg.levels * 3}  ·  ${cfg.levels} niveles`),
-        h('div', { class: 'row' }, h('button', { class: 'btn primary', onclick: () => { Sound.init(); Sound.play('click'); showLevels(); } }, 'Jugar'))
+        h('div', { class: 'row full' }, h('button', { class: 'btn primary', onclick: () => { Sound.init(); Sound.play('click'); showLevels(); } }, 'Jugar'))
       ]);
     }
     function showLevels() {

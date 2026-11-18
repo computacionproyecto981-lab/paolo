@@ -81,3 +81,30 @@ button{font-family:inherit}
   .panel h1{font-size:28px}
   .levels{grid-template-columns:repeat(4,1fr)}
 }
+
+/* ===== Interfaz holográfica: cajas técnicas con borde neón y fondo invisible ===== */
+:root{
+  --holo:#b14dff;            /* morado neón */
+  --holo-blue:#4d7cff;       /* azul espacial */
+  --holo-line:color-mix(in srgb,var(--holo) 75%,transparent);
+  --holo-line-blue:color-mix(in srgb,var(--holo-blue) 80%,transparent);
+  --holo-glow:0 0 10px color-mix(in srgb,var(--holo) 28%,transparent);
+  --holo-glow-blue:0 0 10px color-mix(in srgb,var(--holo-blue) 30%,transparent);
+  --r-tech:6px;
+}
+/* cajas de información: morado neón */
+.chip,.help li,.stats div{background:transparent;border:1px solid var(--holo-line);border-radius:var(--r-tech);box-shadow:var(--holo-glow)}
+/* cajas de controles: azul espacial */
+.back,.ib,.btn,.lv,.toast{background:transparent;border:1px solid var(--holo-line-blue);border-radius:var(--r-tech);box-shadow:var(--holo-glow-blue)}
+.back:hover,.ib:hover,.btn:hover,.lv:hover:not(.locked){background:transparent;border-color:var(--holo-blue);box-shadow:0 0 16px color-mix(in srgb,var(--holo-blue) 55%,transparent)}
+.lv.done{background:transparent;border-color:var(--holo);box-shadow:var(--holo-glow)}
+.toast{background:transparent;backdrop-filter:blur(6px)}
+.touch button{border-radius:8px;background:transparent;border:1px solid var(--holo-line-blue);box-shadow:var(--holo-glow-blue)}
+.touch button.on{background:transparent;border-color:var(--holo);box-shadow:0 0 18px color-mix(in srgb,var(--holo) 60%,transparent)}
+/* el botón principal mantiene su color sólido */
+.btn.primary{background:var(--accent);border-color:transparent;box-shadow:0 8px 24px color-mix(in srgb,var(--accent) 45%,transparent)}
+.btn.primary:hover{background:var(--accent);filter:brightness(1.1)}
+/* Botón "Jugar": barra larga a todo el ancho inferior de la tarjeta */
+.row.full{display:block;margin:10px -26px -26px}
+.row.full .btn{display:block;width:100%;border-radius:0 0 21px 21px;padding:18px;font-size:18px;letter-spacing:2px;text-transform:uppercase;box-shadow:none}
+.row.full .btn:hover{transform:none}

@@ -10,12 +10,12 @@
 <style>
 body{background:radial-gradient(ellipse at top,#1d3a24,#07110a 70%)}
 .bar{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap;justify-content:center;max-width:960px;width:100%}
-.tw{display:flex;align-items:center;gap:8px;padding:6px 12px 6px 6px;border-radius:12px;border:1px solid var(--line);background:rgba(10,20,12,.85);color:#fff;cursor:pointer;transition:.15s;text-align:left}
+.tw{display:flex;align-items:center;gap:8px;padding:6px 12px 6px 6px;border-radius:6px;border:1px solid color-mix(in srgb,#4d7cff 80%,transparent);background:transparent;box-shadow:0 0 10px color-mix(in srgb,#4d7cff 30%,transparent);color:#fff;cursor:pointer;transition:.15s;text-align:left}
 .tw img{width:40px;height:40px;background:url(../assets/bastion/base.webp) center/contain no-repeat}
 .tw b{display:block;font-size:14px}.tw small{color:var(--gold);font-weight:700}
-.tw:hover{border-color:var(--accent)}.tw.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 22%,#0a140c)}
+.tw:hover{border-color:var(--accent)}.tw.on{border-color:var(--accent);background:transparent;box-shadow:0 0 16px color-mix(in srgb,var(--accent) 55%,transparent)}
 .tw:disabled{opacity:.4;cursor:not-allowed}
-.info{flex:1;min-width:200px;display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(10,20,12,.85);font-size:14px;color:var(--muted)}
+.info{flex:1;min-width:200px;display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:6px;border:1px solid color-mix(in srgb,#b14dff 75%,transparent);background:transparent;box-shadow:0 0 10px color-mix(in srgb,#b14dff 28%,transparent);font-size:14px;color:var(--muted)}
 .info .btn{padding:8px 12px;font-size:13px}
 .wave{padding:8px 16px}
 </style>

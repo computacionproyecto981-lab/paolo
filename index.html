@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#06060d;--line:rgba(255,255,255,.1);--muted:#a3a3c2;--gold:#ffc83d}
+:root{--holo:#b14dff;--holo-blue:#4d7cff;--bg:#06060d;--line:rgba(255,255,255,.1);--muted:#a3a3c2;--gold:#ffc83d}
 *{box-sizing:border-box}
 body{margin:0;min-height:100vh;background:#06060d url(assets/hub/bg.webp) center top/cover fixed;color:#f2f2fa;font-family:'Outfit',system-ui,sans-serif}
 .wrap{max-width:1240px;margin:0 auto;padding:48px 24px 64px}
@@ -15,29 +15,30 @@ header{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;
 .logo{font-size:clamp(44px,7vw,84px);font-weight:900;letter-spacing:-2px;line-height:.9;margin:0}
 .logo span{background:linear-gradient(90deg,#ff3df0,#ffb347,#2ee6ff);-webkit-background-clip:text;background-clip:text;color:transparent}
 .sub{color:var(--muted);font-size:18px;margin:12px 0 0;max-width:560px;line-height:1.45}
-.total{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:18px;padding:16px 22px;text-align:right;backdrop-filter:blur(10px)}
+.total{background:transparent;border:1px solid color-mix(in srgb,var(--holo) 75%,transparent);box-shadow:0 0 10px color-mix(in srgb,var(--holo) 28%,transparent);border-radius:6px;padding:16px 22px;text-align:right;backdrop-filter:blur(10px)}
 .total b{display:block;font-size:34px;color:var(--gold)}
 .total small{color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;font-size:11px}
 .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px}
-.filters button{font:inherit;font-weight:600;color:#ddd;background:rgba(255,255,255,.05);border:1px solid var(--line);padding:9px 16px;border-radius:999px;cursor:pointer;transition:.15s}
-.filters button:hover{color:#fff;border-color:rgba(255,255,255,.3)}
-.filters button.on{background:#fff;color:#0b0b14}
+.filters button{font:inherit;font-weight:600;color:#ddd;background:transparent;border:1px solid color-mix(in srgb,var(--holo-blue) 80%,transparent);box-shadow:0 0 10px color-mix(in srgb,var(--holo-blue) 30%,transparent);padding:9px 16px;border-radius:6px;cursor:pointer;transition:.15s}
+.filters button:hover{color:#fff;border-color:var(--holo-blue);box-shadow:0 0 16px color-mix(in srgb,var(--holo-blue) 55%,transparent)}
+.filters button.on{color:#fff;border-color:var(--holo);box-shadow:0 0 16px color-mix(in srgb,var(--holo) 60%,transparent),inset 0 0 12px color-mix(in srgb,var(--holo) 35%,transparent)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:20px}
 .card{position:relative;display:flex;flex-direction:column;border-radius:20px;overflow:hidden;background:rgba(14,14,26,.82);border:1px solid var(--line);text-decoration:none;color:inherit;transition:transform .25s cubic-bezier(.2,1.2,.4,1),box-shadow .25s,border-color .25s;backdrop-filter:blur(8px)}
 .card:hover{transform:translateY(-6px);border-color:var(--c);box-shadow:0 24px 60px rgba(0,0,0,.5),0 0 0 1px var(--c),0 0 40px color-mix(in srgb,var(--c) 30%,transparent)}
 .thumb{position:relative;aspect-ratio:16/10;overflow:hidden}
 .thumb img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s}
 .card:hover .thumb img{transform:scale(1.06)}
-.num{position:absolute;top:12px;left:12px;font-weight:900;font-size:13px;background:rgba(0,0,0,.6);border:1px solid var(--line);padding:4px 9px;border-radius:8px;backdrop-filter:blur(6px)}
-.tag{position:absolute;top:12px;right:12px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#0b0b14;background:var(--c);padding:5px 10px;border-radius:999px}
-.body{padding:16px 18px 18px;display:flex;flex-direction:column;gap:8px;flex:1}
+.num{position:absolute;top:12px;left:12px;font-weight:900;font-size:13px;background:transparent;border:1px solid color-mix(in srgb,var(--holo-blue) 85%,transparent);box-shadow:0 0 10px color-mix(in srgb,var(--holo-blue) 40%,transparent);padding:4px 9px;border-radius:4px;text-shadow:0 1px 4px #000}
+.tag{position:absolute;top:12px;right:12px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#fff;background:transparent;border:1px solid color-mix(in srgb,var(--holo) 85%,transparent);box-shadow:0 0 10px color-mix(in srgb,var(--holo) 40%,transparent);padding:5px 10px;border-radius:4px;text-shadow:0 1px 4px #000}
+.body{padding:16px 18px 0;display:flex;flex-direction:column;gap:8px;flex:1}
 .body h3{margin:0;font-size:21px;letter-spacing:-.3px}
 .body p{margin:0;color:var(--muted);font-size:14px;line-height:1.45;flex:1}
 .prog{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--gold);font-weight:700}
 .bar{flex:1;height:6px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden}
 .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--c),#fff)}
-.play{margin-top:4px;display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:14px}
-.play span:last-child{background:var(--c);color:#0b0b14;padding:7px 14px;border-radius:10px}
+.lvls{color:var(--muted);font-weight:600;font-size:13px}
+.play{margin:10px -18px 0;display:block;text-align:center;background:#8b3dff;color:#fff;font-weight:800;font-size:16px;letter-spacing:2px;text-transform:uppercase;padding:15px 18px;transition:filter .2s,box-shadow .2s}
+.card:hover .play{filter:brightness(1.15);box-shadow:0 0 24px color-mix(in srgb,#8b3dff 70%,transparent)}
 footer{margin-top:44px;color:var(--muted);font-size:13px;text-align:center}
 footer button{font:inherit;color:var(--muted);background:none;border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer;margin-left:8px}
 @media (max-width:600px){.wrap{padding:28px 16px 48px}.total{text-align:left}}
@@ -85,8 +86,8 @@ function render() {
     const done = Math.min(g.levels, (p.unlocked || 1) - 1);
     a.innerHTML = `<div class="thumb"><img src="assets/covers/${g.id}.webp" alt="" loading="lazy"><span class="num">${String(i + 1).padStart(2, '0')}</span><span class="tag">${g.genre}</span></div>
       <div class="body"><h3>${g.title}</h3><p>${g.d}</p>
-      <div class="prog">★ ${stars}/${g.levels * 3}<div class="bar"><i style="width:${stars / (g.levels * 3) * 100}%"></i></div></div>
-      <div class="play"><span style="color:var(--muted);font-weight:600">${done}/${g.levels} niveles</span><span>${done ? 'Continuar' : 'Jugar'}</span></div></div>`;
+      <div class="prog">★ ${stars}/${g.levels * 3}<div class="bar"><i style="width:${stars / (g.levels * 3) * 100}%"></i></div><span class="lvls">${done}/${g.levels} niveles</span></div>
+      <div class="play">${done ? 'Continuar' : 'Jugar'}</div></div>`;
     grid.append(a);
   });
   document.getElementById('total').textContent = total;
