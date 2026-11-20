@@ -184,7 +184,6 @@
     const hud = h('div', { class: 'hud' });
     const soundBtn = h('button', { class: 'ib', title: 'Sonido (M)', html: muted ? ICON.mute : ICON.sound, onclick: () => toggleSound() });
     const top = h('header', { class: 'topbar' },
-      h('a', { class: 'back', href: '../index.html' }, '‹ Menú'),
       h('div', { class: 'title' }, cfg.title),
       hud,
       h('div', { class: 'tools' },

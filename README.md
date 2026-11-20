@@ -1,10 +1,22 @@
-﻿# Arcade 12 · NeuroZen
+# Arcade 12
 
-Doce juegos HTML originales, cada uno con su propia mecánica, arte WebP y niveles con estrellas.
+Doce juegos HTML originales, cada uno con su propia mecánica, arte WebP y niveles con estrellas. No hay menú principal: cada juego se abre con su propia dirección.
 
-**Jugar:** abre `index.html` o visita la versión publicada en Vercel.
+| Juego | Dirección |
+|---|---|
+| Cripta de Cajas | `games/cripta.html` |
+| Salto Lunar | `games/lunar.html` |
+| Nébula Defender | `games/nebula.html` |
+| Gemas Arcanas | `games/gemas.html` |
+| Ladrillo Neón | `games/neon.html` |
+| Bastión | `games/bastion.html` |
+| Memoria Mística | `games/memoria.html` |
+| Serpiente de la Selva | `games/serpiente.html` |
+| Lluvia de Meteoros | `games/teclado.html` |
+| Mini Golf Zen | `games/golf.html` |
+| Pulso Neón | `games/pulso.html` |
+| Flujo | `games/flujo.html` |
 
-- `games/` — los 12 juegos
-- `shared/` — motor común (niveles, menús, sonido)
-- `assets/` — arte WebP
-- `tools/generar_arte.py` — regenera el arte (requiere Python + Pillow)
+- `shared/`: motor común (niveles, pantallas, sonido)
+- `assets/`: arte WebP
+- `tools/generar_arte.py`: regenera el arte (requiere Python + Pillow)
