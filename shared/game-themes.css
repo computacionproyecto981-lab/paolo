@@ -13,7 +13,7 @@ body[data-g="cripta"] .ib:hover,body[data-g="cripta"] .back:hover{border-color:#
 body[data-g="cripta"] .stage canvas{border-radius:0;outline:0;box-shadow:none}
 body[data-g="cripta"] .overlay{background:color-mix(in srgb,#ffc23d 12%,rgba(0,0,0,.72))}
 body[data-g="cripta"] .panel{background:linear-gradient(rgba(38,24,10,.72),rgba(38,24,10,.72)),#07070c;border:2px solid #ffc23d;border-radius:6px 34px 6px 34px;color:#ffe9b0}
-body[data-g="cripta"] .panel h1,body[data-g="cripta"] .panel h2{color:#ffc23d;text-shadow:0 3px 0 color-mix(in srgb,#8a5a1f 70%,#000)}
+body[data-g="cripta"] .panel h1,body[data-g="cripta"] .panel h2{color:#ffc23d}
 body[data-g="cripta"] .kicker{color:#8a5a1f}
 body[data-g="cripta"] .lead{color:color-mix(in srgb,#ffe9b0 75%,transparent)}
 body[data-g="cripta"] .help li,body[data-g="cripta"] .stats div{background:color-mix(in srgb,#ffc23d 8%,transparent);border:1px solid color-mix(in srgb,#ffc23d 50%,transparent);border-radius:4px 16px 4px 16px;box-shadow:none;color:#ffe9b0}
@@ -44,7 +44,7 @@ body[data-g="lunar"] .ib:hover,body[data-g="lunar"] .back:hover{border-color:#b4
 body[data-g="lunar"] .stage canvas{border-radius:0;outline:0;box-shadow:none}
 body[data-g="lunar"] .overlay{background:color-mix(in srgb,#b47cff 12%,rgba(0,0,0,.72))}
 body[data-g="lunar"] .panel{background:linear-gradient(rgba(40,20,80,.55),rgba(40,20,80,.55)),#07070c;border:2px solid #b47cff;border-radius:34px;color:#f3ecff}
-body[data-g="lunar"] .panel h1,body[data-g="lunar"] .panel h2{color:#b47cff;text-shadow:0 3px 0 color-mix(in srgb,#6ee7ff 70%,#000)}
+body[data-g="lunar"] .panel h1,body[data-g="lunar"] .panel h2{color:#b47cff}
 body[data-g="lunar"] .kicker{color:#6ee7ff}
 body[data-g="lunar"] .lead{color:color-mix(in srgb,#f3ecff 75%,transparent)}
 body[data-g="lunar"] .help li,body[data-g="lunar"] .stats div{background:color-mix(in srgb,#b47cff 8%,transparent);border:1px solid color-mix(in srgb,#b47cff 50%,transparent);border-radius:999px;box-shadow:none;color:#f3ecff}
@@ -68,7 +68,7 @@ body[data-g="nebula"] .ib:hover,body[data-g="nebula"] .back:hover{border-color:#
 body[data-g="nebula"] .stage canvas{border-radius:0;outline:0;box-shadow:none}
 body[data-g="nebula"] .overlay{background:color-mix(in srgb,#33e1ff 12%,rgba(0,0,0,.72))}
 body[data-g="nebula"] .panel{background:linear-gradient(rgba(0,30,45,.6),rgba(0,30,45,.6)),#07070c;border:2px solid #33e1ff;border-radius:0;color:#dffbff}
-body[data-g="nebula"] .panel h1,body[data-g="nebula"] .panel h2{color:#33e1ff;text-shadow:0 3px 0 color-mix(in srgb,#ff3d6e 70%,#000)}
+body[data-g="nebula"] .panel h1,body[data-g="nebula"] .panel h2{color:#33e1ff}
 body[data-g="nebula"] .kicker{color:#ff3d6e}
 body[data-g="nebula"] .lead{color:color-mix(in srgb,#dffbff 75%,transparent)}
 body[data-g="nebula"] .help li,body[data-g="nebula"] .stats div{background:color-mix(in srgb,#33e1ff 8%,transparent);border:1px solid color-mix(in srgb,#33e1ff 50%,transparent);border-radius:0;clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);box-shadow:none;color:#dffbff}
@@ -93,7 +93,7 @@ body[data-g="gemas"] .ib:hover,body[data-g="gemas"] .back:hover{border-color:#2e
 body[data-g="gemas"] .stage canvas{border-radius:0;outline:0;box-shadow:none}
 body[data-g="gemas"] .overlay{background:color-mix(in srgb,#2ee6ff 12%,rgba(0,0,0,.72))}
 body[data-g="gemas"] .panel{background:linear-gradient(rgba(20,10,40,.6),rgba(20,10,40,.6)),#07070c;border:2px solid #2ee6ff;border-radius:0;color:#f0fbff}
-body[data-g="gemas"] .panel h1,body[data-g="gemas"] .panel h2{color:#2ee6ff;text-shadow:0 3px 0 color-mix(in srgb,#c084fc 70%,#000)}
+body[data-g="gemas"] .panel h1,body[data-g="gemas"] .panel h2{color:#2ee6ff}
 body[data-g="gemas"] .kicker{color:#c084fc}
 body[data-g="gemas"] .lead{color:color-mix(in srgb,#f0fbff 75%,transparent)}
 body[data-g="gemas"] .help li,body[data-g="gemas"] .stats div{background:color-mix(in srgb,#2ee6ff 8%,transparent);border:1px solid color-mix(in srgb,#2ee6ff 50%,transparent);border-radius:0;clip-path:polygon(12px 0,calc(100% - 12px) 0,100% 50%,calc(100% - 12px) 100%,12px 100%,0 50%);box-shadow:none;color:#f0fbff}
@@ -124,7 +124,7 @@ body[data-g="neon"] .ib:hover,body[data-g="neon"] .back:hover{border-color:#ff3d
 body[data-g="neon"] .stage canvas{border-radius:0;outline:0;box-shadow:none}
 body[data-g="neon"] .overlay{background:color-mix(in srgb,#ff3df0 12%,rgba(0,0,0,.72))}
 body[data-g="neon"] .panel{background:linear-gradient(rgba(25,0,30,.55),rgba(25,0,30,.55)),#07070c;border:2px solid #ff3df0;border-radius:0;color:#ffe6fd}
-body[data-g="neon"] .panel h1,body[data-g="neon"] .panel h2{color:#ff3df0;text-shadow:0 3px 0 color-mix(in srgb,#2ef2ff 70%,#000)}
+body[data-g="neon"] .panel h1,body[data-g="neon"] .panel h2{color:#ff3df0}
 body[data-g="neon"] .kicker{color:#2ef2ff}
 body[data-g="neon"] .lead{color:color-mix(in srgb,#ffe6fd 75%,transparent)}
 body[data-g="neon"] .help li,body[data-g="neon"] .stats div{background:color-mix(in srgb,#ff3df0 8%,transparent);border:1px solid color-mix(in srgb,#ff3df0 50%,transparent);border-radius:0;box-shadow:none;color:#ffe6fd}
@@ -148,7 +148,7 @@ body[data-g="bastion"] .ib:hover,body[data-g="bastion"] .back:hover{border-color
 body[data-g="bastion"] .stage canvas{border-radius:0;outline:0;box-shadow:none}
 body[data-g="bastion"] .overlay{background:color-mix(in srgb,#7bdc5a 12%,rgba(0,0,0,.72))}
 body[data-g="bastion"] .panel{background:linear-gradient(rgba(52,32,14,.82),rgba(52,32,14,.82)),#07070c;border:2px solid #7bdc5a;border-radius:6px 34px 6px 34px;color:#f5ecd6}
-body[data-g="bastion"] .panel h1,body[data-g="bastion"] .panel h2{color:#7bdc5a;text-shadow:0 3px 0 color-mix(in srgb,#a0682b 70%,#000)}
+body[data-g="bastion"] .panel h1,body[data-g="bastion"] .panel h2{color:#7bdc5a}
 body[data-g="bastion"] .kicker{color:#a0682b}
 body[data-g="bastion"] .lead{color:color-mix(in srgb,#f5ecd6 75%,transparent)}
 body[data-g="bastion"] .help li,body[data-g="bastion"] .stats div{background:color-mix(in srgb,#7bdc5a 8%,transparent);border:1px solid color-mix(in srgb,#7bdc5a 50%,transparent);border-radius:4px 16px 4px 16px;box-shadow:none;color:#f5ecd6}
@@ -172,7 +172,7 @@ body[data-g="memoria"] .ib:hover,body[data-g="memoria"] .back:hover{border-color
 body[data-g="memoria"] .stage canvas{border-radius:0;outline:0;box-shadow:none}
 body[data-g="memoria"] .overlay{background:color-mix(in srgb,#e6c36a 12%,rgba(0,0,0,.72))}
 body[data-g="memoria"] .panel{background:linear-gradient(rgba(35,15,50,.65),rgba(35,15,50,.65)),#07070c;border:2px solid #e6c36a;border-radius:22px;color:#fff6dc}
-body[data-g="memoria"] .panel h1,body[data-g="memoria"] .panel h2{color:#e6c36a;text-shadow:0 3px 0 color-mix(in srgb,#8b5cf6 70%,#000)}
+body[data-g="memoria"] .panel h1,body[data-g="memoria"] .panel h2{color:#e6c36a}
 body[data-g="memoria"] .kicker{color:#8b5cf6}
 body[data-g="memoria"] .lead{color:color-mix(in srgb,#fff6dc 75%,transparent)}
 body[data-g="memoria"] .help li,body[data-g="memoria"] .stats div{background:color-mix(in srgb,#e6c36a 8%,transparent);border:1px solid color-mix(in srgb,#e6c36a 50%,transparent);border-radius:14px;box-shadow:none;color:#fff6dc}
@@ -203,7 +203,7 @@ body[data-g="serpiente"] .ib:hover,body[data-g="serpiente"] .back:hover{border-c
 body[data-g="serpiente"] .stage canvas{border-radius:0;outline:0;box-shadow:none}
 body[data-g="serpiente"] .overlay{background:color-mix(in srgb,#7dff5a 12%,rgba(0,0,0,.72))}
 body[data-g="serpiente"] .panel{background:linear-gradient(rgba(10,40,12,.6),rgba(10,40,12,.6)),#07070c;border:2px solid #7dff5a;border-radius:48px 18px 42px 16px;color:#effbe6}
-body[data-g="serpiente"] .panel h1,body[data-g="serpiente"] .panel h2{color:#7dff5a;text-shadow:0 3px 0 color-mix(in srgb,#ffb020 70%,#000)}
+body[data-g="serpiente"] .panel h1,body[data-g="serpiente"] .panel h2{color:#7dff5a}
 body[data-g="serpiente"] .kicker{color:#ffb020}
 body[data-g="serpiente"] .lead{color:color-mix(in srgb,#effbe6 75%,transparent)}
 body[data-g="serpiente"] .help li,body[data-g="serpiente"] .stats div{background:color-mix(in srgb,#7dff5a 8%,transparent);border:1px solid color-mix(in srgb,#7dff5a 50%,transparent);border-radius:30px 12px 26px 10px / 14px 26px 12px 28px;box-shadow:none;color:#effbe6}
@@ -234,7 +234,7 @@ body[data-g="teclado"] .ib:hover,body[data-g="teclado"] .back:hover{border-color
 body[data-g="teclado"] .stage canvas{border-radius:0;outline:0;box-shadow:none}
 body[data-g="teclado"] .overlay{background:color-mix(in srgb,#39ff14 12%,rgba(0,0,0,.72))}
 body[data-g="teclado"] .panel{background:linear-gradient(rgba(0,18,0,.75),rgba(0,18,0,.75)),#07070c;border:2px solid #39ff14;border-radius:0;color:#c8ffc0}
-body[data-g="teclado"] .panel h1,body[data-g="teclado"] .panel h2{color:#39ff14;text-shadow:0 3px 0 color-mix(in srgb,#2ee6ff 70%,#000)}
+body[data-g="teclado"] .panel h1,body[data-g="teclado"] .panel h2{color:#39ff14}
 body[data-g="teclado"] .kicker{color:#2ee6ff}
 body[data-g="teclado"] .lead{color:color-mix(in srgb,#c8ffc0 75%,transparent)}
 body[data-g="teclado"] .help li,body[data-g="teclado"] .stats div{background:color-mix(in srgb,#39ff14 8%,transparent);border:1px solid color-mix(in srgb,#39ff14 50%,transparent);border-radius:0;box-shadow:none;color:#c8ffc0}
@@ -258,7 +258,7 @@ body[data-g="golf"] .ib:hover,body[data-g="golf"] .back:hover{border-color:#7bdc
 body[data-g="golf"] .stage canvas{border-radius:0;outline:0;box-shadow:none}
 body[data-g="golf"] .overlay{background:color-mix(in srgb,#7bdc5a 12%,rgba(0,0,0,.72))}
 body[data-g="golf"] .panel{background:linear-gradient(rgba(20,70,30,.7),rgba(20,70,30,.7)),#07070c;border:2px solid #7bdc5a;border-radius:34px;color:#ffffff}
-body[data-g="golf"] .panel h1,body[data-g="golf"] .panel h2{color:#7bdc5a;text-shadow:0 3px 0 color-mix(in srgb,#ffffff 70%,#000)}
+body[data-g="golf"] .panel h1,body[data-g="golf"] .panel h2{color:#7bdc5a}
 body[data-g="golf"] .kicker{color:#ffffff}
 body[data-g="golf"] .lead{color:color-mix(in srgb,#ffffff 75%,transparent)}
 body[data-g="golf"] .help li,body[data-g="golf"] .stats div{background:color-mix(in srgb,#7bdc5a 8%,transparent);border:1px solid color-mix(in srgb,#7bdc5a 50%,transparent);border-radius:999px;box-shadow:none;color:#ffffff}
@@ -283,7 +283,7 @@ body[data-g="pulso"] .ib:hover,body[data-g="pulso"] .back:hover{border-color:#ff
 body[data-g="pulso"] .stage canvas{border-radius:0;outline:0;box-shadow:none}
 body[data-g="pulso"] .overlay{background:color-mix(in srgb,#ff4f8b 12%,rgba(0,0,0,.72))}
 body[data-g="pulso"] .panel{background:linear-gradient(rgba(40,0,20,.6),rgba(40,0,20,.6)),#07070c;border:2px solid #ff4f8b;border-radius:4px;color:#ffe8f0}
-body[data-g="pulso"] .panel h1,body[data-g="pulso"] .panel h2{color:#ff4f8b;text-shadow:0 3px 0 color-mix(in srgb,#ffd23d 70%,#000)}
+body[data-g="pulso"] .panel h1,body[data-g="pulso"] .panel h2{color:#ff4f8b}
 body[data-g="pulso"] .kicker{color:#ffd23d}
 body[data-g="pulso"] .lead{color:color-mix(in srgb,#ffe8f0 75%,transparent)}
 body[data-g="pulso"] .help li,body[data-g="pulso"] .stats div{background:color-mix(in srgb,#ff4f8b 8%,transparent);border:1px solid color-mix(in srgb,#ff4f8b 50%,transparent);border-radius:3px;transform:skewX(-10deg);box-shadow:none;color:#ffe8f0}
@@ -314,7 +314,7 @@ body[data-g="flujo"] .ib:hover,body[data-g="flujo"] .back:hover{border-color:#2e
 body[data-g="flujo"] .stage canvas{border-radius:0;outline:0;box-shadow:none}
 body[data-g="flujo"] .overlay{background:color-mix(in srgb,#2ee6ff 12%,rgba(0,0,0,.72))}
 body[data-g="flujo"] .panel{background:linear-gradient(rgba(0,30,50,.6),rgba(0,30,50,.6)),#07070c;border:2px solid #2ee6ff;border-radius:34px;color:#e6faff}
-body[data-g="flujo"] .panel h1,body[data-g="flujo"] .panel h2{color:#2ee6ff;text-shadow:0 3px 0 color-mix(in srgb,#1e90ff 70%,#000)}
+body[data-g="flujo"] .panel h1,body[data-g="flujo"] .panel h2{color:#2ee6ff}
 body[data-g="flujo"] .kicker{color:#1e90ff}
 body[data-g="flujo"] .lead{color:color-mix(in srgb,#e6faff 75%,transparent)}
 body[data-g="flujo"] .help li,body[data-g="flujo"] .stats div{background:color-mix(in srgb,#2ee6ff 8%,transparent);border:1px solid color-mix(in srgb,#2ee6ff 50%,transparent);border-radius:999px;box-shadow:none;color:#e6faff}
