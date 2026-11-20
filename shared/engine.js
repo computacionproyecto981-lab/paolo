@@ -175,6 +175,7 @@
 
   /* ---------------- creación de un juego ---------------- */
   function create(cfg) {
+    document.body.dataset.g = cfg.id;
     const G = { cfg, id: cfg.id, level: 1, paused: true, playing: false, started: false, assets: {}, Sound, scale: 1 };
     document.title = cfg.title + ' · Arcade 12';
     if (cfg.accent) document.documentElement.style.setProperty('--accent', cfg.accent);
