@@ -378,3 +378,9 @@ body[data-g="flujo"] .hud{flex-direction:column;margin:0;gap:10px}
 body[data-g="flujo"] .tools{flex-wrap:wrap;justify-content:center;margin-top:auto;gap:10px}
 body[data-g="flujo"] .back{text-align:center}
 }
+
+/* ---- Sin marcos ni sombras: ventanas emergentes, botones, paneles y HUD ---- */
+body *{border:0!important;box-shadow:none!important}
+body *,body *::before,body *::after{outline:0!important}
+body *::before,body *::after{box-shadow:none!important}
+body .sheet,body .ib:hover,body .back:hover,body .bar .ib:hover,body .tg:hover svg{filter:none!important}
