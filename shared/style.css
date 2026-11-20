@@ -95,9 +95,8 @@ button{font-family:inherit}
 /* cajas de información: morado neón */
 .chip,.help li,.stats div{background:transparent;border:1px solid var(--holo-line);border-radius:var(--r-tech);box-shadow:var(--holo-glow)}
 /* cajas de controles: azul espacial */
-.back,.ib,.btn,.lv,.toast{background:transparent;border:1px solid var(--holo-line-blue);border-radius:var(--r-tech);box-shadow:var(--holo-glow-blue)}
-.back:hover,.ib:hover,.btn:hover,.lv:hover:not(.locked){background:transparent;border-color:var(--holo-blue);box-shadow:0 0 16px color-mix(in srgb,var(--holo-blue) 55%,transparent)}
-.lv.done{background:transparent;border-color:var(--holo);box-shadow:var(--holo-glow)}
+.back,.ib,.btn,.toast{background:transparent;border:1px solid var(--holo-line-blue);border-radius:var(--r-tech);box-shadow:var(--holo-glow-blue)}
+.back:hover,.ib:hover,.btn:hover{background:transparent;border-color:var(--holo-blue);box-shadow:0 0 16px color-mix(in srgb,var(--holo-blue) 55%,transparent)}
 .toast{background:transparent;backdrop-filter:blur(6px)}
 .touch button{border-radius:8px;background:transparent;border:1px solid var(--holo-line-blue);box-shadow:var(--holo-glow-blue)}
 .touch button.on{background:transparent;border-color:var(--holo);box-shadow:0 0 18px color-mix(in srgb,var(--holo) 60%,transparent)}
