@@ -384,3 +384,6 @@ body *{border:0!important;box-shadow:none!important}
 body *,body *::before,body *::after{outline:0!important}
 body *::before,body *::after{box-shadow:none!important}
 body .sheet,body .ib:hover,body .back:hover,body .bar .ib:hover,body .tg:hover svg{filter:none!important}
+
+/* ---- Botón de sonido: arriba a la derecha (igual en los 12 juegos) ---- */
+body .snd-dock{position:fixed!important;top:72px!important;right:16px!important;left:auto!important;bottom:auto!important;transform:none!important;z-index:60;display:flex}

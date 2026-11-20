@@ -190,12 +190,12 @@
       h('div', { class: 'tools' },
         h('button', { class: 'ib', title: 'Pausa (Esc)', html: ICON.pause, onclick: () => pause() }),
         h('button', { class: 'ib', title: cfg.typing ? 'Reiniciar nivel' : 'Reiniciar nivel (R)', html: ICON.restart, onclick: () => restart() }),
-        h('button', { class: 'ib', title: 'Niveles', html: ICON.grid, onclick: () => { Sound.play('click'); showLevels(); } }),
-        soundBtn));
+        h('button', { class: 'ib', title: 'Niveles', html: ICON.grid, onclick: () => { Sound.play('click'); showLevels(); } })));
+    const sndDock = h('div', { class: 'snd-dock' }, soundBtn);
     const stage = h('main', { class: 'stage' });
     const ov = h('div', { class: 'overlay' }, h('div', { class: 'loading' }, 'CARGANDO…'));
     const toastEl = h('div', { class: 'toast' });
-    app.append(top, stage, ov, toastEl);
+    app.append(top, stage, ov, toastEl, sndDock);
     G.stage = stage;
 
     function toggleSound() { Sound.init(); Sound.setMuted(!muted); soundBtn.innerHTML = muted ? ICON.mute : ICON.sound; }
